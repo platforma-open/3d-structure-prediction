@@ -6,6 +6,7 @@ xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
 pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 pt := import("@platforma-sdk/workflow-tengo:pt")
 maps := import("@platforma-sdk/workflow-tengo:maps")
+units := import("@platforma-sdk/workflow-tengo:units")
 
 immuneBuilderSw := assets.importSoftware("@platforma-open/milaboratories.3d-structure-prediction.software:immunebuilder-predict")
 buildPdbsMapTpl := assets.importTemplate(":build-pdbs-map")
@@ -70,24 +71,24 @@ wf.body(func(args) {
 	// clonotypeLabel is best-effort — the prepare step queries any label column
 	// anchored on the clonotype axis; if none exists upstream we just skip it
 	// and the python wrapper falls back to clonotypeKey for log lines.
-	tsvBuilder := pframes.tsvFileBuilder()
-	tsvBuilder.setAxisHeader(clonotypeAxisName, "clonotypeKey")
+	tableBuilder := wf.tableBuilder("tsv")
+	tableBuilder.setAxisHeader(clonotypeAxisName, "clonotypeKey")
+	tableBuilder.addPrimary("heavy", heavy, { header: "heavyChain" })
 	labelColumns := columns.getColumns("clonotypeKeyLabels")
 	if len(labelColumns) > 0 {
-		tsvBuilder.add(labelColumns[0], { header: "clonotypeLabel" })
+		tableBuilder.addColumn(labelColumns[0], { header: "clonotypeLabel" })
 	}
-	tsvBuilder.add(heavy, { header: "heavyChain" })
 	if isPaired {
-		tsvBuilder.add(light, { header: "lightChain" })
+		tableBuilder.addColumn(light, { header: "lightChain" })
 	}
-	tsvBuilder.mem(string(memGiB) + "GiB")
-	tsvBuilder.cpu(1)
-	batchTsv := tsvBuilder.build()
+	tableBuilder.mem(memGiB * units.GiB)
+	tableBuilder.cpu(1)
+	batchTsv := tableBuilder.build()
 
 	// Run ImmuneBuilder once on the joined TSV.
 	predictRun := exec.builder().
 		software(immuneBuilderSw).
-		cpu(cpu).ram(string(memGiB) + "GiB").
+		cpu(cpu).mem(memGiB * units.GiB).
 		env("BLOCK_VERSION", blockId).
 		addFile("batch.tsv", batchTsv).
 		arg("--mode").arg(args.mode).

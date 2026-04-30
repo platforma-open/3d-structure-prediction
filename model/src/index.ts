@@ -4,10 +4,12 @@ import type {
   InferOutputsType,
   PColumnIdAndSpec,
   PFrameHandle,
-  SUniversalPColumnId,
+  PlDataTableModel,
+  PObjectId,
 } from "@platforma-sdk/model";
 import {
   BlockModelV3,
+  createDiscoveredPColumnId,
   createPFrameForGraphs,
   createPlDataTableV3,
   OutputColumnProvider,
@@ -163,15 +165,25 @@ export const platforma = BlockModelV3.create(blockDataModel)
     return spec.axesSpec[1]?.name === "pl7.app/vdj/scClonotypeKey";
   })
 
-  .outputWithStatus("structuresTable", (ctx) => {
+  .outputWithStatus("structuresTable", (ctx): PlDataTableModel | undefined => {
     const acc = ctx.outputs?.resolve("structuresTable");
     if (acc === undefined) return undefined;
     const snapshots = new OutputColumnProvider(acc).getAllColumns();
     if (snapshots.length === 0) return undefined;
     return createPlDataTableV3(ctx, {
       columns: snapshots.map((s) => ({
-        ...s,
-        id: s.id as unknown as SUniversalPColumnId,
+        column: {
+          ...s,
+          id: createDiscoveredPColumnId({
+            column: s.id as PObjectId,
+            path: [],
+            columnQualifications: [],
+            queriesQualifications: {},
+          }),
+        },
+        originalId: s.id as PObjectId,
+        qualifications: { forQueries: {}, forHit: [] },
+        path: [],
         isPrimary: true,
       })),
       tableState: ctx.data.tableState,
