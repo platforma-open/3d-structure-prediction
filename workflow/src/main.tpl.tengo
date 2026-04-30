@@ -30,9 +30,13 @@ confidenceColumn := func(columnId, pName, label, extraAnnotations) {
 }
 
 wf.prepare(func(args) {
+	// args.dataset is a PrimaryRef { __isPrimaryRef: "v1", column: PlRef, filter?: PlRef }.
+	// The dataset's column PlRef anchors the bundle; the filter is consumed
+	// later by tableBuilder.addPrimary, which inner-joins it on the row axis.
+	datasetCol := args.dataset.column
 	bb := wf.createPBundleBuilder()
 	bb.ignoreMissingDomains()
-	bb.addAnchor("main", args.datasetRef)
+	bb.addAnchor("main", datasetCol)
 	bb.addSingle(args.heavyChainRef)
 	if args.mode == "ABodyBuilder2" && !is_undefined(args.lightChainRef) {
 		bb.addSingle(args.lightChainRef)
@@ -50,7 +54,8 @@ wf.prepare(func(args) {
 
 wf.body(func(args) {
 	columns := args.columns
-	datasetSpec := columns.getSpec(args.datasetRef)
+	datasetCol := args.dataset.column
+	datasetSpec := columns.getSpec(datasetCol)
 	clonotypeAxisSpec := datasetSpec.axesSpec[1]
 	clonotypeAxisName := clonotypeAxisSpec.name
 
@@ -68,18 +73,22 @@ wf.body(func(args) {
 	blockId := wf.blockId().getDataAsJson()
 
 	// Assemble batch TSV: clonotypeKey, clonotypeLabel, heavyChain, [lightChain].
-	// clonotypeLabel is best-effort — the prepare step queries any label column
-	// anchored on the clonotype axis; if none exists upstream we just skip it
-	// and the python wrapper falls back to clonotypeKey for log lines.
+	// PrimaryRef filters apply to *primaries* only; enrichments full-outer-join
+	// back in (build-table.tpl.tengo:224). So everything that should respect
+	// the filter — heavy chain, light chain, the clonotype label — must be a
+	// primary. The default inner-join across primaries then restricts the
+	// trunk to filter ∩ heavy ∩ light ∩ label, which is exactly the filtered
+	// row set the user picked (e.g. 3 Lead Selection candidates).
 	tableBuilder := wf.tableBuilder("tsv")
 	tableBuilder.setAxisHeader(clonotypeAxisName, "clonotypeKey")
+	tableBuilder.addPrimary("dataset", args.dataset, { header: "_dataset" })
 	tableBuilder.addPrimary("heavy", heavy, { header: "heavyChain" })
 	labelColumns := columns.getColumns("clonotypeKeyLabels")
 	if len(labelColumns) > 0 {
-		tableBuilder.addColumn(labelColumns[0], { header: "clonotypeLabel" })
+		tableBuilder.addPrimary("label", labelColumns[0], { header: "clonotypeLabel" })
 	}
 	if isPaired {
-		tableBuilder.addColumn(light, { header: "lightChain" })
+		tableBuilder.addPrimary("light", light, { header: "lightChain" })
 	}
 	tableBuilder.mem(memGiB * units.GiB)
 	tableBuilder.cpu(1)

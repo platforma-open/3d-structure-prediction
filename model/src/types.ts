@@ -1,18 +1,25 @@
 import type { GraphMakerState } from "@milaboratories/graph-maker";
-import type { PlDataTableStateV2, PlRef, SUniversalPColumnId } from "@platforma-sdk/model";
+import type {
+  DatasetSelection,
+  PlDataTableStateV2,
+  PrimaryRef,
+  SUniversalPColumnId,
+} from "@platforma-sdk/model";
 
 export type PredictionMode = "ABodyBuilder2" | "NanoBodyBuilder2";
 export type ConfidenceMetric = "cdrh3Mean" | "overallMean";
 
 /**
  * Args sent to the workflow — the validated output of `.args(...)`. The
- * workflow side reads these via `wf.prepare`/`wf.body`.
+ * workflow side reads these via `wf.prepare`/`wf.body`. `dataset` is a
+ * `PrimaryRef` so the workflow's `tableBuilder.addPrimary(args.dataset)`
+ * inner-joins the optional filter automatically.
  */
 export type BlockArgs = {
   defaultBlockLabel: string;
   customBlockLabel: string;
 
-  datasetRef: PlRef;
+  dataset: PrimaryRef;
   heavyChainRef: SUniversalPColumnId;
   lightChainRef?: SUniversalPColumnId;
 
@@ -30,13 +37,14 @@ export type BlockArgs = {
 /**
  * Unified V3 data model — what the user manipulates in the UI and what
  * `.args()` derives the workflow args from. Block args (possibly incomplete)
- * live alongside UI state.
+ * live alongside UI state. `dataset` is the opaque `DatasetSelection` emitted
+ * by `PlDatasetSelector` (carries the user-picked primary + optional filter).
  */
 export type BlockData = {
   defaultBlockLabel: string;
   customBlockLabel: string;
 
-  datasetRef?: PlRef;
+  dataset?: DatasetSelection;
   heavyChainRef?: SUniversalPColumnId;
   lightChainRef?: SUniversalPColumnId;
 

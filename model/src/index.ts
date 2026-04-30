@@ -1,22 +1,60 @@
 import type {
   AnchoredPColumnSelector,
   AxisId,
+  DatasetOption,
+  DatasetSelection,
   InferOutputsType,
   PColumnIdAndSpec,
   PFrameHandle,
   PlDataTableModel,
+  PlRef,
   PObjectId,
+  PObjectSpec,
 } from "@platforma-sdk/model";
 import {
   BlockModelV3,
+  buildDatasetOptions,
   createDiscoveredPColumnId,
   createPFrameForGraphs,
   createPlDataTableV3,
+  isPColumnSpec,
   OutputColumnProvider,
   parseResourceMap,
 } from "@platforma-sdk/model";
 import { blockDataModel } from "./dataModel";
 import type { BlockArgs, BlockData, PredictionMode, PredictionSummary } from "./types";
+
+/** Extract the user-picked primary column PlRef from a `DatasetSelection`. */
+function datasetColumnRef(dataset: DatasetSelection | undefined): PlRef | undefined {
+  return dataset?.primary.column;
+}
+
+/**
+ * Source-block trace marker that flags filters originating from antibody-tcr
+ * Lead Selection — those are the only ones we want to surface as filter
+ * options on the 3D-structure-prediction dataset selector.
+ */
+const LEAD_SELECTION_TRACE_TYPE = "milaboratories.antibody-tcr-lead-selection";
+
+type TraceEntry = { type: string; label: string };
+
+function readTrace(annotations: Record<string, string> | undefined): TraceEntry[] {
+  const raw = annotations?.["pl7.app/trace"];
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as TraceEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function leadSelectionLabel(annotations: Record<string, string> | undefined): string | undefined {
+  const own = annotations?.["pl7.app/label"];
+  if (own && own.length > 0) return own;
+  const trace = readTrace(annotations);
+  return trace.find((e) => e.type === LEAD_SELECTION_TRACE_TYPE)?.label;
+}
 
 export * from "./types";
 export { blockDataModel } from "./dataModel";
@@ -85,7 +123,7 @@ export function defaultBlockLabelFor(args: Partial<BlockData>): string {
 export const platforma = BlockModelV3.create(blockDataModel)
 
   .args<BlockArgs>((data) => {
-    if (data.datasetRef === undefined) throw new Error("VDJ dataset is required");
+    if (data.dataset === undefined) throw new Error("VDJ dataset is required");
     if (data.heavyChainRef === undefined) throw new Error("Heavy chain sequence is required");
     if (data.mode === "ABodyBuilder2" && data.lightChainRef === undefined) {
       throw new Error("Light chain sequence is required in paired (ABodyBuilder2) mode");
@@ -93,7 +131,9 @@ export const platforma = BlockModelV3.create(blockDataModel)
     return {
       defaultBlockLabel: data.defaultBlockLabel,
       customBlockLabel: data.customBlockLabel,
-      datasetRef: data.datasetRef,
+      // Flatten the DatasetSelection into a PrimaryRef — the workflow's
+      // tableBuilder.addPrimary detects the optional filter and inner-joins it.
+      dataset: data.dataset.primary,
       heavyChainRef: data.heavyChainRef,
       lightChainRef: data.lightChainRef,
       mode: data.mode,
@@ -106,21 +146,68 @@ export const platforma = BlockModelV3.create(blockDataModel)
     };
   })
 
-  .output("datasetOptions", (ctx) =>
-    ctx.resultPool.getOptions(
-      [
-        {
-          axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/clonotypeKey" }],
-          annotations: { "pl7.app/isAnchor": "true" },
+  // Datasets surfaced in `PlDatasetSelector`. Restricted to clonotype-keyed
+  // anchor PColumns; `buildDatasetOptions` automatically discovers all
+  // compatible filter columns (`pl7.app/isSubset: true`), then we narrow the
+  // filters list to those originating from antibody-tcr Lead Selection — the
+  // canonical workflow for "predict structures of selected leads" — and
+  // override their labels with the lead-selection block subtitle so the
+  // dropdown reads e.g. "In vivo top 100" instead of an internal column id.
+  //
+  // The try/catch around `buildDatasetOptions` works around an SDK bug
+  // (Phase 05): once we run, our own `subset/confident` /
+  // `subset/predictionSuccessful` PColumns (annotated `pl7.app/isSubset: true`)
+  // are visible in the column collection via ctx outputs but lack a PlRef in
+  // the result pool, which makes `filterMatchesToOptions` throw
+  // "no PlRef found for filter column …". Falling back to a flat, no-filter
+  // list keeps the dataset dropdown alive in that state.
+  .output("datasetOptions", (ctx): DatasetOption[] | undefined => {
+    let options: DatasetOption[] | undefined;
+    try {
+      options = buildDatasetOptions(ctx, {
+        primary: (spec: PObjectSpec): boolean => {
+          if (!isPColumnSpec(spec)) return false;
+          if (spec.annotations?.["pl7.app/isAnchor"] !== "true") return false;
+          if (spec.axesSpec.length < 2) return false;
+          if (spec.axesSpec[0]?.name !== "pl7.app/sampleId") return false;
+          const rowAxis = spec.axesSpec[1]?.name;
+          return rowAxis === "pl7.app/vdj/clonotypeKey" || rowAxis === "pl7.app/vdj/scClonotypeKey";
         },
-        {
-          axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/scClonotypeKey" }],
-          annotations: { "pl7.app/isAnchor": "true" },
-        },
-      ],
-      { label: { includeNativeLabel: false } },
-    ),
-  )
+      });
+    } catch {
+      // SDK Phase 05 throws when our own subset PColumns (no PlRef) appear
+      // among filter candidates after the first run. Degrade to a plain
+      // dataset list with no filter options attached.
+      const plainOptions = ctx.resultPool.getOptions(
+        [
+          {
+            axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/clonotypeKey" }],
+            annotations: { "pl7.app/isAnchor": "true" },
+          },
+          {
+            axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/scClonotypeKey" }],
+            annotations: { "pl7.app/isAnchor": "true" },
+          },
+        ],
+        { label: { includeNativeLabel: false } },
+      );
+      return plainOptions.map((primary) => ({ primary }));
+    }
+    if (options === undefined) return undefined;
+    return options.map((opt) => {
+      if (!opt.filters || opt.filters.length === 0) return opt;
+      const kept: { ref: PlRef; label: string }[] = [];
+      for (const f of opt.filters) {
+        const spec = ctx.resultPool.getPColumnSpecByRef(f.ref);
+        if (!spec) continue;
+        if (!readTrace(spec.annotations).some((e) => e.type === LEAD_SELECTION_TRACE_TYPE)) {
+          continue;
+        }
+        kept.push({ ref: f.ref, label: leadSelectionLabel(spec.annotations) ?? f.label });
+      }
+      return kept.length === 0 ? { ...opt, filters: undefined } : { ...opt, filters: kept };
+    });
+  })
 
   /**
    * AA sequence options anchored to the selected dataset. The dropdown labels
@@ -128,7 +215,7 @@ export const platforma = BlockModelV3.create(blockDataModel)
    * to assign columns to heavy vs light. Same shape as `clonotype-clustering`.
    */
   .output("sequenceOptions", (ctx) => {
-    const ref = ctx.data.datasetRef;
+    const ref = datasetColumnRef(ctx.data.dataset);
     if (ref === undefined) return undefined;
 
     const datasetSpec = ctx.resultPool.getPColumnSpecByRef(ref);
@@ -152,15 +239,15 @@ export const platforma = BlockModelV3.create(blockDataModel)
       ctx.data.lightChainRef !== undefined ? "ABodyBuilder2" : "NanoBodyBuilder2",
   )
 
-  .output("datasetSpec", (ctx) =>
-    ctx.data.datasetRef !== undefined
-      ? ctx.resultPool.getPColumnSpecByRef(ctx.data.datasetRef)
-      : undefined,
-  )
+  .output("datasetSpec", (ctx) => {
+    const ref = datasetColumnRef(ctx.data.dataset);
+    return ref !== undefined ? ctx.resultPool.getPColumnSpecByRef(ref) : undefined;
+  })
 
   .output("isSingleCell", (ctx) => {
-    if (ctx.data.datasetRef === undefined) return undefined;
-    const spec = ctx.resultPool.getPColumnSpecByRef(ctx.data.datasetRef);
+    const ref = datasetColumnRef(ctx.data.dataset);
+    if (ref === undefined) return undefined;
+    const spec = ctx.resultPool.getPColumnSpecByRef(ref);
     if (spec === undefined) return undefined;
     return spec.axesSpec[1]?.name === "pl7.app/vdj/scClonotypeKey";
   })
@@ -259,8 +346,9 @@ export const platforma = BlockModelV3.create(blockDataModel)
   // Axis identifier for the clonotype-key column in the structures table.
   // Used by the UI to wire `show-cell-button-for-axis-id` for per-row PDB download.
   .output("clonotypeAxisId", (ctx): AxisId | undefined => {
-    if (ctx.data.datasetRef === undefined) return undefined;
-    const spec = ctx.resultPool.getPColumnSpecByRef(ctx.data.datasetRef);
+    const ref = datasetColumnRef(ctx.data.dataset);
+    if (ref === undefined) return undefined;
+    const spec = ctx.resultPool.getPColumnSpecByRef(ref);
     const axis = spec?.axesSpec[1];
     if (axis === undefined) return undefined;
     return { type: axis.type, name: axis.name, domain: axis.domain };
@@ -270,7 +358,7 @@ export const platforma = BlockModelV3.create(blockDataModel)
   // chain sequence columns sit on the same clonotypeKey axis is suspicious.
   // sc datasets are excluded because pairing is normal there.
   .output("isScFvSuspect", (ctx): boolean => {
-    const ref = ctx.data.datasetRef;
+    const ref = datasetColumnRef(ctx.data.dataset);
     if (ref === undefined) return false;
     const datasetSpec = ctx.resultPool.getPColumnSpecByRef(ref);
     if (!datasetSpec) return false;

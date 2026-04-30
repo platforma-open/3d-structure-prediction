@@ -14,8 +14,8 @@ import {
   PlBtnExportArchive,
   PlBtnGhost,
   PlBtnGroup,
+  PlDatasetSelector,
   PlDropdown,
-  PlDropdownRef,
   PlLogView,
   PlMaskIcon24,
   PlNumberField,
@@ -28,7 +28,7 @@ import { useApp } from "../app";
 const app = useApp();
 
 const settingsOpen = ref(
-  app.model.data.datasetRef === undefined || app.model.data.heavyChainRef === undefined,
+  app.model.data.dataset === undefined || app.model.data.heavyChainRef === undefined,
 );
 
 function onDatasetChange() {
@@ -349,10 +349,11 @@ async function downloadPdbForRow(key?: PTableKey) {
     <PlSlideModal v-model="settingsOpen" close-on-outside-click shadow>
       <template #title>Settings</template>
 
-      <PlDropdownRef
-        v-model="app.model.data.datasetRef"
+      <PlDatasetSelector
+        v-model="app.model.data.dataset"
         :options="app.model.outputs.datasetOptions"
         label="VDJ dataset"
+        filter-label="Filter (optional)"
         clearable
         required
         @update:model-value="onDatasetChange"
@@ -361,7 +362,7 @@ async function downloadPdbForRow(key?: PTableKey) {
       <PlDropdown
         v-model="app.model.data.heavyChainRef"
         :options="app.model.outputs.sequenceOptions"
-        :disabled="app.model.data.datasetRef === undefined"
+        :disabled="app.model.data.dataset === undefined"
         label="Heavy chain sequence (full VDJ region)"
         required
       />
@@ -369,7 +370,7 @@ async function downloadPdbForRow(key?: PTableKey) {
       <PlDropdown
         v-model="app.model.data.lightChainRef"
         :options="app.model.outputs.sequenceOptions"
-        :disabled="app.model.data.datasetRef === undefined"
+        :disabled="app.model.data.dataset === undefined"
         label="Light chain sequence (leave empty for VHH)"
         clearable
       />
