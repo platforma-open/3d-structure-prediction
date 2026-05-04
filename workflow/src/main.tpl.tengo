@@ -29,11 +29,6 @@ confidenceColumn := func(columnId, pName, label, extraAnnotations) {
 	}
 }
 
-// Sentinel key used to probe whether `args.dataset.filter` still resolves in
-// the current result pool (the UI may carry a stale filter selection that no
-// longer matches any discovered filter option).
-DATASET_FILTER_KEY := "datasetFilter"
-
 wf.prepare(func(args) {
 	// args.dataset is a PrimaryRef { __isPrimaryRef: "v1", column: PlRef, filter?: PlRef }.
 	// The dataset's column PlRef anchors the bundle; the filter is consumed
@@ -45,10 +40,6 @@ wf.prepare(func(args) {
 	bb.addSingle(args.heavyChainRef)
 	if args.mode == "ABodyBuilder2" && !is_undefined(args.lightChainRef) {
 		bb.addSingle(args.lightChainRef)
-	}
-	if !is_undefined(args.dataset.filter) {
-		// Optional resolution — body() drops the filter if it didn't resolve.
-		bb.addSingle(args.dataset.filter, DATASET_FILTER_KEY)
 	}
 	// Pull the clonotype-axis label column so we can log a human-readable
 	// identifier (e.g. CDR3 sequence) instead of the internal hash key.
@@ -88,34 +79,9 @@ wf.body(func(args) {
 	// primary. The default inner-join across primaries then restricts the
 	// trunk to filter ∩ heavy ∩ light ∩ label, which is exactly the filtered
 	// row set the user picked (e.g. 3 Lead Selection candidates).
-	// The UI keeps a previously-picked filter PlRef in args even when that
-	// filter is no longer offered by `datasetOptions` (so users see their
-	// historical choice). Strip the stale filter here — if it didn't resolve
-	// in the bundle, addPrimary would otherwise build a sub-resource without
-	// a populated spec and inner-join against an empty filter, producing an
-	// empty trunk.
-	// The UI keeps a previously-picked filter PlRef in args even when that
-	// filter is no longer offered by `datasetOptions` (so users see their
-	// historical pick). Strip the filter when it didn't actually resolve to a
-	// column in the bundle — addPrimary would otherwise inner-join against an
-	// empty filter and produce an empty trunk.
-	effectiveDataset := args.dataset
-	if !is_undefined(args.dataset.filter) {
-		filterCol := undefined
-		for k in columns.getColumnKeys() {
-			if k == DATASET_FILTER_KEY {
-				filterCol = columns.getColumn(k)
-				break
-			}
-		}
-		if is_undefined(filterCol) || is_undefined(filterCol.spec) {
-			effectiveDataset = { __isPrimaryRef: "v1", column: args.dataset.column }
-		}
-	}
-
 	tableBuilder := wf.tableBuilder("tsv")
 	tableBuilder.setAxisHeader(clonotypeAxisName, "clonotypeKey")
-	tableBuilder.addPrimary("dataset", effectiveDataset, { header: "_dataset" })
+	tableBuilder.addPrimary("dataset", args.dataset, { header: "_dataset" })
 	tableBuilder.addPrimary("heavy", heavy, { header: "heavyChain" })
 	labelColumns := columns.getColumns("clonotypeKeyLabels")
 	if len(labelColumns) > 0 {
