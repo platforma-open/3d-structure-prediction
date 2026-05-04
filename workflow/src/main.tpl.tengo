@@ -7,7 +7,6 @@ pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 pt := import("@platforma-sdk/workflow-tengo:pt")
 maps := import("@platforma-sdk/workflow-tengo:maps")
 units := import("@platforma-sdk/workflow-tengo:units")
-ll := import("@platforma-sdk/workflow-tengo:ll")
 
 immuneBuilderSw := assets.importSoftware("@platforma-open/milaboratories.3d-structure-prediction.software:immunebuilder-predict")
 buildPdbsMapTpl := assets.importTemplate(":build-pdbs-map")
@@ -97,15 +96,11 @@ wf.body(func(args) {
 	// empty trunk.
 	// The UI keeps a previously-picked filter PlRef in args even when that
 	// filter is no longer offered by `datasetOptions` (so users see their
-	// historical choice). Strip the stale filter — if it didn't resolve to
-	// an actual spec in the bundle, addPrimary would otherwise build a
-	// sub-resource without a populated spec and inner-join against an empty
-	// filter, producing an empty trunk.
+	// historical pick). Strip the filter when it didn't actually resolve to a
+	// column in the bundle — addPrimary would otherwise inner-join against an
+	// empty filter and produce an empty trunk.
 	effectiveDataset := args.dataset
 	if !is_undefined(args.dataset.filter) {
-		// A "no result" ref still leaves a pool entry with spec=undefined;
-		// reading the spec directly is what tells us the filter actually
-		// resolved.
 		filterCol := undefined
 		for k in columns.getColumnKeys() {
 			if k == DATASET_FILTER_KEY {
@@ -113,7 +108,6 @@ wf.body(func(args) {
 				break
 			}
 		}
-		ll.print("DEBUG dataset.filter =", args.dataset.filter, "filterCol =", filterCol)
 		if is_undefined(filterCol) || is_undefined(filterCol.spec) {
 			effectiveDataset = { __isPrimaryRef: "v1", column: args.dataset.column }
 		}
