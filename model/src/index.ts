@@ -147,65 +147,33 @@ export const platforma = BlockModelV3.create(blockDataModel)
   })
 
   // Datasets surfaced in `PlDatasetSelector`. Restricted to clonotype-keyed
-  // anchor PColumns; `buildDatasetOptions` automatically discovers all
-  // compatible filter columns (`pl7.app/isSubset: true`), then we narrow the
-  // filters list to those originating from antibody-tcr Lead Selection — the
-  // canonical workflow for "predict structures of selected leads" — and
-  // override their labels with the lead-selection block subtitle so the
-  // dropdown reads e.g. "In vivo top 100" instead of an internal column id.
-  //
-  // The try/catch around `buildDatasetOptions` works around an SDK bug
-  // (Phase 05): once we run, our own `subset/confident` /
-  // `subset/predictionSuccessful` PColumns (annotated `pl7.app/isSubset: true`)
-  // are visible in the column collection via ctx outputs but lack a PlRef in
-  // the result pool, which makes `filterMatchesToOptions` throw
-  // "no PlRef found for filter column …". Falling back to a flat, no-filter
-  // list keeps the dataset dropdown alive in that state.
+  // anchor PColumns; the `filter` predicate narrows discovered filter columns
+  // to those originating from antibody-tcr Lead Selection — the canonical
+  // workflow for "predict structures of selected leads". Filter labels are
+  // overridden with the lead-selection block subtitle so the dropdown reads
+  // e.g. "In vivo top 100" instead of an internal column id.
   .output("datasetOptions", (ctx): DatasetOption[] | undefined => {
-    let options: DatasetOption[] | undefined;
-    try {
-      options = buildDatasetOptions(ctx, {
-        primary: (spec: PObjectSpec): boolean => {
-          if (!isPColumnSpec(spec)) return false;
-          if (spec.annotations?.["pl7.app/isAnchor"] !== "true") return false;
-          if (spec.axesSpec.length < 2) return false;
-          if (spec.axesSpec[0]?.name !== "pl7.app/sampleId") return false;
-          const rowAxis = spec.axesSpec[1]?.name;
-          return rowAxis === "pl7.app/vdj/clonotypeKey" || rowAxis === "pl7.app/vdj/scClonotypeKey";
-        },
-      });
-    } catch {
-      // SDK Phase 05 throws when our own subset PColumns (no PlRef) appear
-      // among filter candidates after the first run. Degrade to a plain
-      // dataset list with no filter options attached.
-      const plainOptions = ctx.resultPool.getOptions(
-        [
-          {
-            axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/clonotypeKey" }],
-            annotations: { "pl7.app/isAnchor": "true" },
-          },
-          {
-            axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/scClonotypeKey" }],
-            annotations: { "pl7.app/isAnchor": "true" },
-          },
-        ],
-        { label: { includeNativeLabel: false } },
-      );
-      return plainOptions.map((primary) => ({ primary }));
-    }
+    const options = buildDatasetOptions(ctx, {
+      primary: (spec: PObjectSpec): boolean => {
+        if (!isPColumnSpec(spec)) return false;
+        if (spec.annotations?.["pl7.app/isAnchor"] !== "true") return false;
+        if (spec.axesSpec.length < 2) return false;
+        if (spec.axesSpec[0]?.name !== "pl7.app/sampleId") return false;
+        const rowAxis = spec.axesSpec[1]?.name;
+        return rowAxis === "pl7.app/vdj/clonotypeKey" || rowAxis === "pl7.app/vdj/scClonotypeKey";
+      },
+      filter: (spec: PObjectSpec): boolean =>
+        readTrace(spec.annotations).some((e) => e.type === LEAD_SELECTION_TRACE_TYPE),
+    });
     if (options === undefined) return undefined;
     return options.map((opt) => {
       if (!opt.filters || opt.filters.length === 0) return opt;
-      const kept: { ref: PlRef; label: string }[] = [];
-      for (const f of opt.filters) {
+      const filters = opt.filters.map((f) => {
         const spec = ctx.resultPool.getPColumnSpecByRef(f.ref);
-        if (!spec) continue;
-        if (!readTrace(spec.annotations).some((e) => e.type === LEAD_SELECTION_TRACE_TYPE)) {
-          continue;
-        }
-        kept.push({ ref: f.ref, label: leadSelectionLabel(spec.annotations) ?? f.label });
-      }
-      return kept.length === 0 ? { ...opt, filters: undefined } : { ...opt, filters: kept };
+        const label = (spec && leadSelectionLabel(spec.annotations)) ?? f.label;
+        return { ref: f.ref, label };
+      });
+      return { ...opt, filters };
     });
   })
 
