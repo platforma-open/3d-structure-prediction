@@ -3,8 +3,10 @@ import {
   confidenceMetricOptions,
   predictionModeOptions,
 } from "@platforma-open/milaboratories.3d-structure-prediction.model";
+import type { PlStructureViewerProps } from "@milaboratories/structure-viewer";
+import { PlStructureViewer } from "@milaboratories/structure-viewer";
 import type { ImportFileHandle, PFrameHandle, PTableKey } from "@platforma-sdk/model";
-import { getColumnsFull, getRawPlatformaInstance, getSingleColumnData } from "@platforma-sdk/model";
+import { getColumnsFull, getSingleColumnData } from "@platforma-sdk/model";
 import type { FileExportEntry } from "@platforma-sdk/ui-vue";
 import {
   PlAccordionSection,
@@ -212,63 +214,19 @@ const exportDisabled = computed(
 
 const clonotypeAxisId = computed(() => app.model.outputs.clonotypeAxisId);
 
-// Per-row PDB download: triggered by the "download" cell button on the
-// clonotype-key axis column. Looks up the file handle in pdbsMap by key,
-// fetches bytes via the blob driver, and writes them to the user-selected
-// path (browser fallback uses the standard <a download> trick).
-const rowDownloadPending = ref<string | null>(null);
-async function downloadPdbForRow(key?: PTableKey) {
-  if (!key) return;
-  const clonotypeKey = key[0];
-  if (clonotypeKey === null || clonotypeKey === undefined) return;
-  const keyStr = String(clonotypeKey);
-  const entries = pdbsMap.value;
-  if (!entries) return;
-  const match = entries.find((e) => String(e.key[0]) === keyStr);
-  if (!match || !match.value) return;
+// 3D viewer — opens a single structure for the row the user clicked.
+const viewer = ref<PlStructureViewerProps>();
 
-  rowDownloadPending.value = keyStr;
-  try {
-    // Make sure labels are resolved before computing the filename — when the
-    // user clicks before the eager fetch finishes, fall back to awaiting it.
-    if (Object.keys(resolvedLabels.value).length === 0) {
-      resolvedLabels.value = await resolveClonotypeLabels();
-    }
-    const bytes = await getRawPlatformaInstance().blobDriver.getContent(match.value.handle);
-    // Copy into a fresh ArrayBuffer — the result of getContent may carry
-    // a SharedArrayBuffer-typed view, which strict-mode TS rejects for
-    // FileSystemWritableFileStream.write / Blob constructors.
-    const buf = bytes.buffer.slice(
-      bytes.byteOffset,
-      bytes.byteOffset + bytes.byteLength,
-    ) as ArrayBuffer;
-    const fileName = pdbFileNameFor(keyStr);
-    const showSaveFilePicker = (
-      window as unknown as { showSaveFilePicker?: (opts: unknown) => Promise<FileSystemFileHandle> }
-    ).showSaveFilePicker;
-    if (typeof showSaveFilePicker === "function") {
-      const handle = await showSaveFilePicker({
-        types: [{ description: "PDB structure", accept: { "chemical/x-pdb": [".pdb"] } }],
-        suggestedName: fileName,
-      });
-      const writable = await handle.createWritable();
-      await writable.write(buf);
-      await writable.close();
-    } else {
-      // Fallback for browsers without showSaveFilePicker.
-      const blob = new Blob([buf], { type: "chemical/x-pdb" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-  } finally {
-    rowDownloadPending.value = null;
-  }
+function openViewerForRow(rowKey?: PTableKey) {
+  const key = rowKey?.at(0);
+  if (!key) return;
+  const handle = pdbsMap.value?.find((entry) => entry.key.at(0) === key)?.value?.handle;
+  if (!handle) return;
+  viewer.value = { handle, fileName: pdbFileNameFor(String(key)) };
+}
+
+function handleViewerVisibility(open: boolean) {
+  if (!open) viewer.value = undefined;
 }
 </script>
 
@@ -334,7 +292,7 @@ async function downloadPdbForRow(key?: PTableKey) {
       :cell-button-invoke-rows-on-double-click="false"
       not-ready-text="Configure the dataset and chains, then run."
       no-rows-text="No structures predicted yet."
-      @cell-button-clicked="downloadPdbForRow"
+      @cell-button-clicked="openViewerForRow"
     />
 
     <PlSlideModal v-model="settingsOpen" close-on-outside-click shadow>
@@ -452,6 +410,16 @@ async function downloadPdbForRow(key?: PTableKey) {
           :step="4"
         />
       </PlAccordionSection>
+    </PlSlideModal>
+
+    <PlSlideModal
+      :model-value="viewer !== undefined"
+      width="100%"
+      :close-on-outside-click="false"
+      @update:model-value="handleViewerVisibility"
+    >
+      <template #title>3D Structure Viewer</template>
+      <PlStructureViewer v-if="viewer" v-bind="viewer" />
     </PlSlideModal>
   </PlBlockPage>
 </template>
