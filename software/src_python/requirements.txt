@@ -1,0 +1,4 @@
+ImmuneBuilder==1.2
+torch==2.7.0
+biopython==1.85
+openmm==8.3.1

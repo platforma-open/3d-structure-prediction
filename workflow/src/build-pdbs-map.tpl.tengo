@@ -1,0 +1,43 @@
+// Workdir processor template: builds a File-typed ResourceMap PColumn
+// keyed by clonotypeKey from the post-prediction workdir.
+//
+// Reads `manifest.tsv` (written by run_immunebuilder.py — header
+// `clonotypeKey\tpdb_filename`, one row per successful prediction),
+// then saves each referenced PDB file from `pdbs/` and adds it to the
+// ResourceMap under its clonotypeKey. Only successful rows appear; failed
+// rows have no manifest entry and therefore no ResourceMap entry.
+
+self := import("@platforma-sdk/workflow-tengo:workdir.proc")
+
+text := import("text")
+path := import("@platforma-sdk/workflow-tengo:path")
+pcolumn := import("@platforma-sdk/workflow-tengo:pframes.pcolumn")
+
+self.readFiles(func(inputs) {
+	return { manifest: "manifest.tsv" }
+})
+
+self.body(func(inputs) {
+	manifestRaw := string(inputs.manifest.getData())
+
+	data := pcolumn.resourceMapBuilder(/* keyLength */ 1)
+
+	lines := text.split(text.trim_space(manifestRaw), "\n")
+	// Skip header; iterate data rows. trim_space on each line + each field
+	// strips stray CR introduced when csv writes manifest with CRLF endings.
+	if len(lines) > 1 {
+		for i := 1; i < len(lines); i++ {
+			line := text.trim_space(lines[i])
+			if line == "" { continue }
+			fields := text.split(line, "\t")
+			if len(fields) < 2 { continue }
+			clonotypeKey := text.trim_space(fields[0])
+			pdbFilename := text.trim_space(fields[1])
+			if pdbFilename == "" { continue }
+			pdbFile := self.saveFile(path.join("pdbs", pdbFilename))
+			data.add([clonotypeKey], pdbFile)
+		}
+	}
+
+	return data.build()
+})

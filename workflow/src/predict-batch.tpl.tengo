@@ -1,0 +1,73 @@
+// predict-batch — body template for `pframes.processColumn` batch mode.
+// Receives one batch's TSV as a Blob file reference at `__value__`
+// (passContent=false), runs the ImmuneBuilder Python wrapper on it, and
+// returns:
+//   - "confidence" — confidence.tsv file ref (Xsv-imported by the orchestrator)
+//   - "pdbsMap"    — ResourceMap of per-clonotype PDB files (built via the
+//                    same workdir processor used by the legacy single-batch
+//                    flow)
+//
+// Aggregate `summary.json` is intentionally NOT emitted — in batch mode each
+// batch has its own summary; aggregation across batches is a separate concern
+// the model can compute from the confidence PFrame post-hoc.
+
+self := import("@platforma-sdk/workflow-tengo:tpl")
+ll := import("@platforma-sdk/workflow-tengo:ll")
+smart := import("@platforma-sdk/workflow-tengo:smart")
+exec := import("@platforma-sdk/workflow-tengo:exec")
+assets := import("@platforma-sdk/workflow-tengo:assets")
+pConstants := import("@platforma-sdk/workflow-tengo:pframes.constants")
+units := import("@platforma-sdk/workflow-tengo:units")
+
+immuneBuilderSw := assets.importSoftware("@platforma-open/milaboratories.3d-structure-prediction.software:immunebuilder-predict")
+buildPdbsMapTpl := assets.importTemplate(":build-pdbs-map")
+
+self.defineOutputs(
+	"confidence",
+	"pdbsMap"
+)
+
+self.body(func(inputs) {
+	batchFile := inputs[pConstants.VALUE_FIELD_NAME]
+	if !smart.isReference(batchFile) {
+		ll.panic("predict-batch: expected __value__ to be a file reference (passContent=false), got: %v", batchFile)
+	}
+
+	mode := inputs.mode
+	seed := inputs.seed
+	cpu := inputs.cpu
+	memGiB := inputs.memGiB
+	confidenceMetric := inputs.confidenceMetric
+	threshold := inputs.threshold
+	blockId := inputs.blockId
+	// Sentinel produced by the workflow's pre-warmup step. We don't consume
+	// the file content — adding it as a workdir input is what wires this batch
+	// to await the warmup resource, so every batch only starts after the
+	// shared model cache is populated.
+	warmupSentinel := inputs.warmupSentinel
+
+	predictRun := exec.builder().
+		software(immuneBuilderSw).
+		cpu(cpu).mem(memGiB * units.GiB).
+		env("BLOCK_VERSION", blockId).
+		addFile("warmup.done", warmupSentinel).
+		addFile("batch.tsv", batchFile).
+		arg("--mode").arg(mode).
+		arg("--input").arg("batch.tsv").
+		arg("--output-dir").arg("pdbs").
+		arg("--manifest").arg("manifest.tsv").
+		arg("--confidence").arg("confidence.tsv").
+		arg("--metric").arg(confidenceMetric).
+		arg("--threshold").arg(string(threshold)).
+		arg("--seed").arg(string(seed)).
+		saveFile("confidence.tsv").
+		processWorkdir("pdbsMap", buildPdbsMapTpl, {}).
+		printErrStreamToStdout().
+		saveStdoutStream().
+		run()
+
+	return {
+		confidence: predictRun.getFile("confidence.tsv"),
+		pdbsMap: predictRun.getProcessorResult("pdbsMap")
+	}
+})
