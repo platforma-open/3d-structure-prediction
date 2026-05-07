@@ -1,6 +1,6 @@
 {
   "name": "@platforma-open/milaboratories.3d-structure-prediction.software",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "Block Software",
   "scripts": {
@@ -27,7 +27,10 @@
       "immunebuilder-predict": {
         "binary": {
           "artifact": "py-archive",
-          "cmd": [ "python", "{pkg}/run_immunebuilder.py" ]
+          "cmd": [
+            "python",
+            "{pkg}/run_immunebuilder.py"
+          ]
         }
       }
     }
