@@ -75,3 +75,29 @@ def cdr_ranges_in_pdb_notation(chain: str) -> dict[str, tuple[str, str]]:
 def cdrh3_length(residues: list[NumberedResidue]) -> int:
     """Count residues in CDRH3."""
     return sum(1 for r in residues if r.chain == "H" and r.region == "CDR3")
+
+
+# IMGT 42/49/50/52 are the same four physical FR2 residues historically
+# described as Kabat 37/44/45/47. FR2 has no insertion-prone loops, so the
+# correspondence is canonical (Vincke et al. 2009; Mitchell & Colwell 2018).
+VHH_HALLMARKS_IMGT: dict[int, tuple[str, ...]] = {
+    42: ("F", "Y"),  # canonical VHH; conventional VH carries V
+    49: ("E",),      # canonical VHH; conventional VH carries G
+    50: ("R",),      # canonical VHH; conventional VH carries L
+    52: ("G",),      # canonical VHH; conventional VH carries W
+}
+
+
+def vhh_hallmarks_present(residues: list[NumberedResidue]) -> bool:
+    """R15 — return True when the heavy chain looks like a canonical VHH.
+
+    Reads IMGT-numbered residues already extracted from the predicted Antibody
+    (no second ANARCI call). Tolerates one humanized position: True iff at
+    least 2 of the 4 hallmark positions carry a canonical VHH residue.
+    """
+    by_pos = {r.imgt_int: r.aa for r in residues if r.chain == "H"}
+    matches = sum(
+        1 for pos, expected in VHH_HALLMARKS_IMGT.items()
+        if by_pos.get(pos) in expected
+    )
+    return matches >= 2

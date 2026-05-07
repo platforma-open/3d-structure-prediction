@@ -69,12 +69,19 @@ def _log(message: str) -> None:
     print(f"[{ts}] {message}", file=sys.stderr, flush=True)
 
 from numbering import cdrh3_length as imgt_cdrh3_length
-from numbering import extract_numbered_residues
+from numbering import extract_numbered_residues, vhh_hallmarks_present
 from pdb_writer import augment_pdb
 from sanitize import sanitize_pair
 
+# `clonotypeKey` is a placeholder — the actual column name we write back is
+# the same name we read from the input TSV (the orchestrator uses the axis
+# spec name, e.g. `pl7.app/vdj/clonotypeKey`, as the column header). See
+# build_confidence_fields().
+KEY_COLUMN_PLACEHOLDER = "clonotypeKey"
+
 CONFIDENCE_FIELDS = [
-    "clonotypeKey",
+    KEY_COLUMN_PLACEHOLDER,
+    "clonotypeLabel",
     "meanError",
     "cdrh1Error",
     "cdrh2Error",
@@ -85,10 +92,54 @@ CONFIDENCE_FIELDS = [
     "perResidueError",
     "cdrh3Length",
     "failureReason",
+    "failureReasonText",
     "warning",
+    "warningText",
 ]
 
-MANIFEST_FIELDS = ["clonotypeKey", "pdb_filename"]
+
+def build_confidence_fields(key_col: str) -> list[str]:
+    return [key_col if f == KEY_COLUMN_PLACEHOLDER else f for f in CONFIDENCE_FIELDS]
+
+
+# Code → human-readable label maps. The code columns stay (hidden by default)
+# so downstream blocks / future failure-stats logic can group by enum value;
+# the *Text columns are what the user actually sees in the table.
+FAILURE_REASON_LABELS: dict[str, str] = {
+    "empty_sequence": "Empty sequence",
+    "stop_codon_mid_sequence": "Stop codon in sequence",
+    "non_standard_aa_only_after_strip": "No standard amino acids after cleanup",
+    "non_standard_aa_residue": "Non-standard amino acid residue",
+    "length_out_of_range": "Length outside expected VH/VL range",
+    "light_chain_missing_in_paired_mode":
+        "Light chain missing — switch to NanoBodyBuilder2 or pick a light chain",
+}
+
+WARNING_LABELS: dict[str, str] = {
+    "probable_signal_peptide": "Possible N-terminal signal peptide",
+    "long_cdrh3": "Long CDR-H3 (≥20 aa) — confidence may be reduced",
+    "vhh_hallmarks_missing": "VHH hallmark residues not detected",
+}
+
+
+def _failure_reason_label(code: str) -> str:
+    if not code:
+        return ""
+    if code in FAILURE_REASON_LABELS:
+        return FAILURE_REASON_LABELS[code]
+    # Structured prefixes — preserve the suffix for triage rather than
+    # collapsing to a generic message.
+    if code.startswith("immunebuilder_exception:"):
+        return f"ImmuneBuilder error: {code.split(':', 1)[1]}"
+    if code.startswith("unknown_mode:"):
+        return f"Unknown prediction mode: {code.split(':', 1)[1]}"
+    return code
+
+
+def _warning_label(code: str) -> str:
+    return WARNING_LABELS.get(code, code)
+
+MANIFEST_FIELDS = [KEY_COLUMN_PLACEHOLDER, "pdb_filename"]
 
 
 def indexed_filename(row_idx: int) -> str:
@@ -122,6 +173,7 @@ def pick_key_column(fieldnames: list[str]) -> str:
 @dataclass
 class RowResult:
     clonotype_key: str
+    clonotype_label: str = ""
     mean_error: str = ""
     cdrh1: str = ""
     cdrh2: str = ""
@@ -139,9 +191,14 @@ class RowResult:
     def warning_str(self) -> str:
         return ";".join(self.warnings)
 
-    def to_tsv_row(self) -> dict[str, str]:
+    @property
+    def warning_text(self) -> str:
+        return "; ".join(_warning_label(w) for w in self.warnings)
+
+    def to_tsv_row(self, key_col: str) -> dict[str, str]:
         return {
-            "clonotypeKey": self.clonotype_key,
+            key_col: self.clonotype_key,
+            "clonotypeLabel": self.clonotype_label,
             "meanError": self.mean_error,
             "cdrh1Error": self.cdrh1,
             "cdrh2Error": self.cdrh2,
@@ -152,7 +209,9 @@ class RowResult:
             "perResidueError": self.per_residue_json,
             "cdrh3Length": self.cdrh3_len,
             "failureReason": self.failure_reason,
+            "failureReasonText": _failure_reason_label(self.failure_reason),
             "warning": self.warning_str,
+            "warningText": self.warning_text,
         }
 
 
@@ -368,10 +427,12 @@ def process_batch(
     for row_idx, row in enumerate(rows):
         key = row.get(key_col, "")
         # Use the human-readable label (e.g. CDR3 sequence) for log lines
-        # when the workflow provides one; fall back to the raw key.
-        label = row.get("clonotypeLabel") or key
-        result = RowResult(clonotype_key=key)
-        prefix = f"[{row_idx + 1}/{n}] {label}"
+        # AND echo it into confidence.tsv as the `clonotypeLabel` column —
+        # the workflow's xsv import surfaces that column as `pl7.app/label`
+        # so the V3 structures table substitutes it into the row-axis cells.
+        label_from_row = row.get("clonotypeLabel") or ""
+        result = RowResult(clonotype_key=key, clonotype_label=label_from_row)
+        prefix = f"[{row_idx + 1}/{n}] {label_from_row or key}"
 
         sanitized = sanitize_pair(
             row.get("heavyChain", ""),
@@ -456,10 +517,13 @@ def process_batch(
             result.cdrl2 = _format_number(_mean(_region_errors(residues, "L", "CDR2")))
             result.cdrl3 = _format_number(_mean(_region_errors(residues, "L", "CDR3")))
 
-        nb = imgt_cdrh3_length(extract_numbered_residues(antibody))
+        numbered = extract_numbered_residues(antibody)
+        nb = imgt_cdrh3_length(numbered)
         result.cdrh3_len = _format_int(nb)
         if nb >= 20:
             result.warnings.append("long_cdrh3")
+        if mode == "NanoBodyBuilder2" and not vhh_hallmarks_present(numbered):
+            result.warnings.append("vhh_hallmarks_missing")
         result.pdb_filename = pdb_filename
 
         success_count += 1
@@ -471,20 +535,27 @@ def process_batch(
 
         results.append(result)
 
+    # Preserve the input key-column header in our outputs. The batch
+    # orchestrator hands us TSVs whose key column is named after the axis spec
+    # (e.g. `pl7.app/vdj/clonotypeKey`); when batches are concatenated, the
+    # downstream xsv import expects that same header back.
+    manifest_fields = [key_col if f == KEY_COLUMN_PLACEHOLDER else f for f in MANIFEST_FIELDS]
+    confidence_fields = build_confidence_fields(key_col)
+
     with open(manifest_tsv, "w", newline="") as f:
         writer = csv.DictWriter(
-            f, fieldnames=MANIFEST_FIELDS, delimiter="\t", lineterminator="\n"
+            f, fieldnames=manifest_fields, delimiter="\t", lineterminator="\n"
         )
         writer.writeheader()
         for r in results:
             if r.pdb_filename:
-                writer.writerow({"clonotypeKey": r.clonotype_key, "pdb_filename": r.pdb_filename})
+                writer.writerow({key_col: r.clonotype_key, "pdb_filename": r.pdb_filename})
 
     with open(confidence_tsv, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=CONFIDENCE_FIELDS, delimiter="\t")
+        writer = csv.DictWriter(f, fieldnames=confidence_fields, delimiter="\t")
         writer.writeheader()
         for r in results:
-            writer.writerow(r.to_tsv_row())
+            writer.writerow(r.to_tsv_row(key_col))
 
     summary = _build_summary(results, metric, threshold)
     if summary_json is not None:
@@ -510,19 +581,54 @@ def process_batch(
             _log(f"  warning: {n_warn} × {warning}")
 
 
+def warmup(mode: str, sentinel: Path | None) -> None:
+    """Force the ImmuneBuilder weight download into a known cache location.
+
+    Run as a single pre-step before the parallel batch fan-out. Avoids the
+    race where multiple batch containers download the same weight files into
+    a shared cache dir simultaneously, producing partial / corrupt files.
+    """
+    _log(f"warmup mode={mode} loading predictor (this may download weights)")
+    _load_predictor(mode)
+    if sentinel is not None:
+        sentinel.write_text(
+            f"mode={mode}\nimmunebuilder_version={get_immunebuilder_version()}\n"
+        )
+    _log("warmup OK")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["ABodyBuilder2", "NanoBodyBuilder2"], required=True)
-    parser.add_argument("--input", required=True, help="Batch TSV with clonotypeKey, heavyChain[, lightChain]")
-    parser.add_argument("--output-dir", required=True, help="Directory for per-clonotype PDB files")
-    parser.add_argument("--manifest", required=True, help="Path to manifest.tsv")
-    parser.add_argument("--confidence", required=True, help="Path to confidence.tsv")
+    parser.add_argument("--warmup", action="store_true",
+                        help="Pre-download model weights and exit. --input/--output-dir/--manifest/--confidence are not used.")
+    parser.add_argument("--sentinel", default=None,
+                        help="In --warmup mode, path to a sentinel file written on success.")
+    parser.add_argument("--input", help="Batch TSV with clonotypeKey, heavyChain[, lightChain]")
+    parser.add_argument("--output-dir", help="Directory for per-clonotype PDB files")
+    parser.add_argument("--manifest", help="Path to manifest.tsv")
+    parser.add_argument("--confidence", help="Path to confidence.tsv")
     parser.add_argument("--summary", default=None, help="Path to summary.json (aggregate stats for the model)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--metric", choices=["cdrh3Mean", "overallMean"], default="cdrh3Mean")
     parser.add_argument("--threshold", type=float, default=2.5,
                         help="Confidence threshold (Å) used to derive confidentCount in summary.json")
     args = parser.parse_args()
+
+    if args.warmup:
+        warmup(args.mode, Path(args.sentinel) if args.sentinel else None)
+        return
+
+    missing = [
+        name for name, value in [
+            ("--input", args.input),
+            ("--output-dir", args.output_dir),
+            ("--manifest", args.manifest),
+            ("--confidence", args.confidence),
+        ] if not value
+    ]
+    if missing:
+        parser.error(f"the following arguments are required when not in --warmup mode: {', '.join(missing)}")
 
     process_batch(
         input_tsv=Path(args.input),

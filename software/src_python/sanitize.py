@@ -1,8 +1,9 @@
 """Sequence sanitization pipeline for antibody structure prediction.
 
-Implements R9-R15 from the block spec. Order matters — stop-codon detection
+Implements R9-R14 from the block spec. Order matters — stop-codon detection
 must run before non-standard-AA stripping, otherwise `*` gets removed and the
-check never fires.
+check never fires. R15 (VHH hallmark check) runs post-prediction on the
+IMGT-numbered antibody — see `numbering.vhh_hallmarks_present`.
 """
 
 from __future__ import annotations
@@ -74,24 +75,6 @@ def detect_signal_peptide(seq: str) -> bool:
     return bool(SIGNAL_PEPTIDE_RE.match(seq))
 
 
-def check_vhh_hallmarks(seq: str) -> bool:
-    """Approximate VHH hallmark detection when ANARCI numbering isn't handy yet.
-
-    Returns True when the sequence looks like a canonical VHH. Uses a coarse
-    windowed lookup (Kabat 37/44/45/47 fall inside FR2, roughly 35-50 aa from
-    the N-terminus for a typical VH); when ANARCI is available in numbering.py
-    this check can be swapped for a positional one. Ships as a best-effort
-    heuristic per R15 — sequences that fail are *flagged* (warning), not
-    rejected.
-    """
-    if len(seq) < 50:
-        return False
-    # Window 35..50 covers the FR2 region for the vast majority of VH/VHH.
-    window = seq[35:50]
-    # Canonical VHH tends to carry F/Y and R inside FR2; conventional VH carries W.
-    return ("W" not in window) and any(r in window for r in ("R", "K"))
-
-
 def sanitize_chain(raw: str, kind: str) -> tuple[str, str, list[str]]:
     """Run the full sanitization pipeline on a single chain.
 
@@ -158,9 +141,9 @@ def sanitize_pair(
             return result
         result.vl = vl
     elif mode == "NanoBodyBuilder2":
-        # R15 — VHH hallmark check (best-effort).
-        if not check_vhh_hallmarks(vh):
-            result.warnings.append("vhh_hallmarks_missing")
+        # R15 hallmark check runs post-prediction in run_immunebuilder.py
+        # against IMGT-numbered residues (see numbering.vhh_hallmarks_present).
+        pass
     else:
         result.failure_reason = f"unknown_mode:{mode}"
 

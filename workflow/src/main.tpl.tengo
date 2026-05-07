@@ -1,15 +1,15 @@
 wf := import("@platforma-sdk/workflow-tengo:workflow")
-exec := import("@platforma-sdk/workflow-tengo:exec")
 assets := import("@platforma-sdk/workflow-tengo:assets")
 pframes := import("@platforma-sdk/workflow-tengo:pframes")
 xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
 pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 pt := import("@platforma-sdk/workflow-tengo:pt")
-maps := import("@platforma-sdk/workflow-tengo:maps")
+smart := import("@platforma-sdk/workflow-tengo:smart")
+exec := import("@platforma-sdk/workflow-tengo:exec")
 units := import("@platforma-sdk/workflow-tengo:units")
 
+predictBatchTpl := assets.importTemplate(":predict-batch")
 immuneBuilderSw := assets.importSoftware("@platforma-open/milaboratories.3d-structure-prediction.software:immunebuilder-predict")
-buildPdbsMapTpl := assets.importTemplate(":build-pdbs-map")
 
 CONFIDENCE_METRIC_ANNOTATION := { "pl7.app/structure/confidenceMetric": "predictedErrorAngstroms" }
 
@@ -21,6 +21,7 @@ confidenceColumn := func(columnId, pName, label, extraAnnotations) {
 	for k, v in extraAnnotations { annotations[k] = v }
 	return {
 		column: columnId,
+		id: columnId,
 		spec: {
 			valueType: "Double",
 			name: pName,
@@ -31,18 +32,24 @@ confidenceColumn := func(columnId, pName, label, extraAnnotations) {
 
 wf.prepare(func(args) {
 	// args.dataset is a PrimaryRef { __isPrimaryRef: "v1", column: PlRef, filter?: PlRef }.
-	// The dataset's column PlRef anchors the bundle; the filter is consumed
-	// later by tableBuilder.addPrimary, which inner-joins it on the row axis.
-	datasetCol := args.dataset.column
+	// `addAnchor` resolves the dataset column (also gives us its spec for the
+	// row-axis lookup); `addRef` is the no-anchor form for the optional filter
+	// PlRef so the bundle resolves both spec and data — needed when we wrap
+	// heavy chain as a ResolvedPrimaryRef for processColumn batch.
 	bb := wf.createPBundleBuilder()
 	bb.ignoreMissingDomains()
-	bb.addAnchor("main", datasetCol)
+	bb.addAnchor("main", args.dataset.column)
 	bb.addSingle(args.heavyChainRef)
 	if args.mode == "ABodyBuilder2" && !is_undefined(args.lightChainRef) {
 		bb.addSingle(args.lightChainRef)
 	}
-	// Pull the clonotype-axis label column so we can log a human-readable
-	// identifier (e.g. CDR3 sequence) instead of the internal hash key.
+	if !is_undefined(args.dataset.filter) {
+		bb.addRef(args.dataset.filter)
+	}
+	// Clonotype-axis label column — passed as a secondary `columns` entry to
+	// processColumn so the python wrapper sees `clonotypeLabel` per row and
+	// echoes it into confidence.tsv (used as the row-axis label substitution
+	// in the V3 structures table).
 	bb.addMulti(
 		{
 			axes: [{ anchor: "main", idx: 1 }],
@@ -63,61 +70,64 @@ wf.body(func(args) {
 	isPaired := args.mode == "ABodyBuilder2"
 	light := undefined
 	if isPaired { light = columns.getColumn(args.lightChainRef) }
+	labelColumns := columns.getColumns("clonotypeKeyLabels")
+	labelEntry := len(labelColumns) > 0 ? labelColumns[0] : undefined
 
 	seed := is_undefined(args.torchSeed) ? 42 : args.torchSeed
 	cpu := is_undefined(args.cpu) ? 4 : args.cpu
 	memGiB := is_undefined(args.mem) ? 16 : args.mem
 	confidenceMetric := is_undefined(args.confidenceMetric) ? "cdrh3Mean" : args.confidenceMetric
 	threshold := is_undefined(args.confidenceThresholdAngstroms) ? 2.5 : args.confidenceThresholdAngstroms
+	batchSize := is_undefined(args.batchSize) ? 50 : args.batchSize
 
 	blockId := wf.blockId().getDataAsJson()
 
-	// Assemble batch TSV: clonotypeKey, clonotypeLabel, heavyChain, [lightChain].
-	// PrimaryRef filters apply to *primaries* only; enrichments full-outer-join
-	// back in (build-table.tpl.tengo:224). So everything that should respect
-	// the filter — heavy chain, light chain, the clonotype label — must be a
-	// primary. The default inner-join across primaries then restricts the
-	// trunk to filter ∩ heavy ∩ light ∩ label, which is exactly the filtered
-	// row set the user picked (e.g. 3 Lead Selection candidates).
-	tableBuilder := wf.tableBuilder("tsv")
-	tableBuilder.setAxisHeader(clonotypeAxisName, "clonotypeKey")
-	tableBuilder.addPrimary("dataset", args.dataset, { header: "_dataset" })
-	tableBuilder.addPrimary("heavy", heavy, { header: "heavyChain" })
-	labelColumns := columns.getColumns("clonotypeKeyLabels")
-	if len(labelColumns) > 0 {
-		tableBuilder.addPrimary("label", labelColumns[0], { header: "clonotypeLabel" })
+	// Heavy chain is the keyspace primary. When the dataset PrimaryRef carries
+	// a filter, wrap heavy as a ResolvedPrimaryRef so the batch orchestrator
+	// inner-joins the filter on each batch's clonotype keys.
+	primarySrc := { spec: heavy.spec, data: heavy.data }
+	if !is_undefined(args.dataset.filter) {
+		filterCol := columns.getColumn(args.dataset.filter)
+		primarySrc = {
+			__isPrimaryRef: "v1",
+			column: { spec: heavy.spec, data: heavy.data },
+			filter: { spec: filterCol.spec, data: filterCol.data }
+		}
 	}
+
+	// Secondary entries — outer-joined onto each batch's keyspace.
+	secondaryEntries := []
 	if isPaired {
-		tableBuilder.addPrimary("light", light, { header: "lightChain" })
+		secondaryEntries = append(secondaryEntries, {
+			src: { spec: light.spec, data: light.data },
+			header: "lightChain"
+		})
 	}
-	tableBuilder.mem(memGiB * units.GiB)
-	tableBuilder.cpu(1)
-	batchTsv := tableBuilder.build()
+	if !is_undefined(labelEntry) {
+		secondaryEntries = append(secondaryEntries, {
+			src: { spec: labelEntry.spec, data: labelEntry.data },
+			header: "clonotypeLabel"
+		})
+	}
 
-	// Run ImmuneBuilder once on the joined TSV.
-	predictRun := exec.builder().
-		software(immuneBuilderSw).
-		cpu(cpu).mem(memGiB * units.GiB).
-		env("BLOCK_VERSION", blockId).
-		addFile("batch.tsv", batchTsv).
-		arg("--mode").arg(args.mode).
-		arg("--input").arg("batch.tsv").
-		arg("--output-dir").arg("pdbs").
-		arg("--manifest").arg("manifest.tsv").
-		arg("--confidence").arg("confidence.tsv").
-		arg("--summary").arg("summary.json").
-		arg("--metric").arg(confidenceMetric).
-		arg("--threshold").arg(string(threshold)).
-		arg("--seed").arg(string(seed)).
-		saveFile("confidence.tsv").
-		saveFileContent("summary.json").
-		processWorkdir("pdbsMap", buildPdbsMapTpl, {}).
-		printErrStreamToStdout().
-		saveStdoutStream().
-		run()
-
-	// Build confidence Xsv import spec, branching on mode.
-	confidenceColumns := [
+	// Per-batch confidence.tsv → typed PColumns. The orchestrator adds the
+	// batch-key axis (clonotype) automatically; `batchKeyColumns` names it.
+	// `clonotypeLabel` is echoed by the python wrapper so the V3 structures
+	// table substitutes it into the row-axis cells (single-axis pl7.app/label
+	// PColumn → recognised by PlAgDataTable's `isLabelColumn`).
+	confidenceXsvColumns := [
+		{
+			column: "clonotypeLabel",
+			id: "clonotypeLabel",
+			spec: {
+				valueType: "String",
+				name: "pl7.app/label",
+				annotations: {
+					"pl7.app/label": "Clone",
+					"pl7.app/table/orderPriority": "100000"
+				}
+			}
+		},
 		confidenceColumn("meanError", "pl7.app/structure/confidence/mean",
 			"Mean error (Å)", { "pl7.app/isScore": "true", "pl7.app/table/orderPriority": "90000" }),
 		confidenceColumn("cdrh1Error", "pl7.app/structure/confidence/cdrh1", "CDRH1 error (Å)", {}),
@@ -130,15 +140,16 @@ wf.body(func(args) {
 			})
 	]
 	if isPaired {
-		confidenceColumns = append(confidenceColumns,
+		confidenceXsvColumns = append(confidenceXsvColumns,
 			confidenceColumn("cdrl1Error", "pl7.app/structure/confidence/cdrl1", "CDRL1 error (Å)", {}))
-		confidenceColumns = append(confidenceColumns,
+		confidenceXsvColumns = append(confidenceXsvColumns,
 			confidenceColumn("cdrl2Error", "pl7.app/structure/confidence/cdrl2", "CDRL2 error (Å)", {}))
-		confidenceColumns = append(confidenceColumns,
+		confidenceXsvColumns = append(confidenceXsvColumns,
 			confidenceColumn("cdrl3Error", "pl7.app/structure/confidence/cdrl3", "CDRL3 error (Å)", {}))
 	}
-	confidenceColumns = append(confidenceColumns, {
+	confidenceXsvColumns = append(confidenceXsvColumns, {
 		column: "perResidueError",
+		id: "perResidueError",
 		spec: {
 			valueType: "String",
 			name: "pl7.app/structure/confidence/perResidue",
@@ -150,46 +161,153 @@ wf.body(func(args) {
 			}
 		}
 	})
-	confidenceColumns = append(confidenceColumns, {
+	confidenceXsvColumns = append(confidenceXsvColumns, {
 		column: "cdrh3Length",
+		id: "cdrh3Length",
 		spec: {
 			valueType: "Long",
 			name: "pl7.app/structure/cdrh3Length",
 			annotations: { "pl7.app/label": "CDRH3 length (aa)" }
 		}
 	})
-	confidenceColumns = append(confidenceColumns, {
-		column: "failureReason",
+	// failureReason / warning come in two flavours:
+	//   - the *Text columns carry human-readable strings (translated python-side)
+	//     and are surfaced in the table.
+	//   - the code columns retain the raw enum value, hidden by default; they
+	//     stay in the schema so downstream blocks / future failure-stats logic
+	//     can group on a stable identifier.
+	confidenceXsvColumns = append(confidenceXsvColumns, {
+		column: "failureReasonText",
+		id: "failureReasonText",
 		spec: {
 			valueType: "String",
-			name: "pl7.app/structure/failureReason",
+			name: "pl7.app/structure/failureReason/text",
 			annotations: {
 				"pl7.app/label": "Failure reason",
 				"pl7.app/table/visibility": "optional"
 			}
 		}
 	})
-	confidenceColumns = append(confidenceColumns, {
-		column: "warning",
+	confidenceXsvColumns = append(confidenceXsvColumns, {
+		column: "failureReason",
+		id: "failureReason",
 		spec: {
 			valueType: "String",
-			name: "pl7.app/structure/warning",
+			name: "pl7.app/structure/failureReason",
+			annotations: {
+				"pl7.app/label": "Failure reason (code)",
+				"pl7.app/table/visibility": "hidden"
+			}
+		}
+	})
+	confidenceXsvColumns = append(confidenceXsvColumns, {
+		column: "warningText",
+		id: "warningText",
+		spec: {
+			valueType: "String",
+			name: "pl7.app/structure/warning/text",
 			annotations: {
 				"pl7.app/label": "Warnings",
 				"pl7.app/table/visibility": "optional"
 			}
 		}
 	})
+	confidenceXsvColumns = append(confidenceXsvColumns, {
+		column: "warning",
+		id: "warning",
+		spec: {
+			valueType: "String",
+			name: "pl7.app/structure/warning",
+			annotations: {
+				"pl7.app/label": "Warnings (codes)",
+				"pl7.app/table/visibility": "hidden"
+			}
+		}
+	})
 
-	confidencePf := xsv.importFile(predictRun.getFile("confidence.tsv"), "tsv", {
-		axes: [
-			{ column: "clonotypeKey", spec: clonotypeAxisSpec }
+	// Pre-download model weights once, before the batch fan-out. ImmuneBuilder
+	// fetches weights on first predictor construction into a shared on-disk
+	// cache; without this step, N parallel batch containers race to write the
+	// same files and produce partial/corrupt caches that fail with no retry.
+	// The sentinel file is forwarded as a body input — each batch awaits it
+	// (via addFile in predict-batch.tpl.tengo) before its own exec runs, so
+	// every batch starts against an already-warm cache.
+	warmupRun := exec.builder().
+		software(immuneBuilderSw).
+		cpu(1).mem(2 * units.GiB).
+		env("BLOCK_VERSION", blockId).
+		arg("--warmup").
+		arg("--mode").arg(args.mode).
+		arg("--sentinel").arg("warmup.done").
+		saveFile("warmup.done").
+		printErrStreamToStdout().
+		saveStdoutStream().
+		run()
+	warmupSentinel := warmupRun.getFile("warmup.done")
+
+	// Per-batch scalar settings forwarded to predict-batch as `inputs.<key>`.
+	bodyExtra := {
+		mode: smart.createJsonResource(args.mode),
+		seed: smart.createJsonResource(seed),
+		cpu: smart.createJsonResource(cpu),
+		memGiB: smart.createJsonResource(memGiB),
+		confidenceMetric: smart.createJsonResource(confidenceMetric),
+		threshold: smart.createJsonResource(threshold),
+		blockId: smart.createJsonResource(blockId),
+		warmupSentinel: warmupSentinel
+	}
+
+	processResult := pframes.processColumn(
+		{
+			primary: { src: primarySrc, header: "heavyChain" },
+			columns: secondaryEntries,
+			primaryJoin: "inner"
+		},
+		predictBatchTpl,
+		[
+			{
+				type: "Xsv",
+				name: "confidence",
+				xsvType: "tsv",
+				settings: {
+					batchKeyColumns: [clonotypeAxisName],
+					columns: confidenceXsvColumns,
+					storageFormat: "Parquet"
+				}
+			},
+			{
+				type: "ResourceMap",
+				name: "pdbsMap",
+				spec: {
+					kind: "PColumn",
+					name: "pl7.app/structure/pdb",
+					domain: { "pl7.app/structure/numbering": "imgt" },
+					valueType: "File",
+					axesSpec: [],
+					annotations: {
+						"pl7.app/label": "Predicted PDB structure",
+						"pl7.app/structure/numbering": "imgt"
+					}
+				}
+			}
 		],
-		columns: confidenceColumns,
-		storageFormat: "Parquet"
-	}, { splitDataAndSpec: true })
+		{
+			batch: {
+				size: batchSize,
+				keyColumns: [clonotypeAxisName],
+				format: "tsv",
+				// passContent=false: orchestrator writes per-batch blob files
+				// (one per slice) and hands each as a file reference to the body.
+				// passContent=true would ship the entire per-scope joined TSV as
+				// a single value resource — that's capped at 3MiB and overflows
+				// at ~22MiB on real datasets.
+				passContent: false
+			},
+			extra: bodyExtra
+		}
+	)
 
-	// Inject trace into all confidence columns.
+	// Trace stamp for every confidence + subset column.
 	trace := pSpec.makeTrace(datasetSpec, {
 		type: "milaboratories.3d-structure-prediction",
 		id: blockId,
@@ -197,20 +315,21 @@ wf.body(func(args) {
 		label: "3D Structure Prediction"
 	})
 
-	pfb := pframes.pFrameBuilder()
-	for k, v in confidencePf {
-		pfb.add(k, trace.inject(v.spec), v.data)
+	// Confidence pframe — one PColumn per Xsv column declared above.
+	confidencePfb := pframes.pFrameBuilder()
+	for col in confidenceXsvColumns {
+		out := processResult.output("confidence", col.id)
+		confidencePfb.add(col.id, trace.inject(out.spec), out.data)
 	}
+	confidencePfHandle := confidencePfb.build()
 
-	// Subset columns: predictionSuccessful + confident.
-	// pt sees columns by their xsv-import id (`cdrh3Error`, `failureReason`),
-	// not by the PColumn spec.name.
+	// Subset columns (predictionSuccessful + confident) computed via pt over
+	// the assembled confidence pframe. pt addresses columns by xsv id, not by
+	// spec.name.
 	metricColumn := "cdrh3Error"
 	if confidenceMetric == "overallMean" {
 		metricColumn = "meanError"
 	}
-
-	confidencePfHandle := pfb.build()
 
 	subsetWf := pt.workflow().mem("2GiB").cpu(1)
 	df := subsetWf.frame(pt.p.full(confidencePfHandle))
@@ -225,9 +344,6 @@ wf.body(func(args) {
 
 	subsetRun := subsetWf.run()
 
-	// Import each pt-emitted TSV back into a PColumn via xsv.importFile so the
-	// resulting data resource has a proper PColumn data type (raw Blob from
-	// pt.save isn't recognised by export-pcolumn).
 	predictionSuccessfulPf := xsv.importFile(subsetRun.getFile("subsets.tsv"), "tsv", {
 		axes: [{ column: clonotypeAxisName, spec: clonotypeAxisSpec }],
 		columns: [{
@@ -262,11 +378,12 @@ wf.body(func(args) {
 		storageFormat: "Parquet"
 	}, { splitDataAndSpec: true })
 
-	// Re-build the pframe with confidence + subset columns (table data only,
-	// no File-typed columns — those go in a separate pdbsPf below).
+	// Final structures pframe: confidence + subset columns. The label column
+	// (clonotypeLabel) is part of confidence.
 	finalPfb := pframes.pFrameBuilder()
-	for k, v in confidencePf {
-		finalPfb.add(k, trace.inject(v.spec), v.data)
+	for col in confidenceXsvColumns {
+		out := processResult.output("confidence", col.id)
+		finalPfb.add(col.id, trace.inject(out.spec), out.data)
 	}
 	for k, v in predictionSuccessfulPf {
 		finalPfb.add("subset/" + k, trace.inject(v.spec), v.data)
@@ -274,34 +391,20 @@ wf.body(func(args) {
 	for k, v in confidentPf {
 		finalPfb.add("subset/" + k, trace.inject(v.spec), v.data)
 	}
-
 	finalPf := finalPfb.build()
 
-	// File-typed ResourceMap PColumn keyed by clonotypeKey. Built by the
-	// build-pdbs-map workdir processor template — each entry maps a
-	// clonotypeKey to its PDB file resource. Only successful predictions
-	// appear (failed rows have no manifest entry).
-	pdbsSpec := {
-		kind: "PColumn",
-		name: "pl7.app/structure/pdb",
-		domain: { "pl7.app/structure/numbering": "imgt" },
-		valueType: "File",
-		axesSpec: [clonotypeAxisSpec],
-		annotations: {
-			"pl7.app/label": "Predicted PDB structure",
-			"pl7.app/structure/numbering": "imgt"
-		}
-	}
+	// PDB ResourceMap pframe — produced directly by the batch orchestrator
+	// (merged across batches via merge-resource-maps). Failed clonotypes have
+	// no entry.
+	pdbsOut := processResult.output("pdbsMap")
 	pdbsPfb := pframes.pFrameBuilder()
-	pdbsPfb.add("pdb", trace.inject(pdbsSpec), predictRun.getProcessorResult("pdbsMap"))
+	pdbsPfb.add("pdb", trace.inject(pdbsOut.spec), pdbsOut.data)
 	pdbsPf := pdbsPfb.build()
 
 	return {
 		outputs: {
 			structuresTable: pframes.exportFrame(finalPf),
-			pdbsMap: pframes.exportFrame(pdbsPf),
-			summary: predictRun.getFileContent("summary.json"),
-			predictionLog: predictRun.getStdoutStream()
+			pdbsMap: pframes.exportFrame(pdbsPf)
 		},
 		exports: {
 			structures: finalPf,

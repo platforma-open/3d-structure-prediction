@@ -43,8 +43,8 @@ catalogs:
       specifier: 1.73.0
       version: 1.73.0
     '@platforma-sdk/workflow-tengo':
-      specifier: 5.20.1
-      version: 5.20.1
+      specifier: 5.21.0
+      version: 5.21.0
     shx:
       specifier: 0.4.0
       version: 0.4.0
@@ -189,7 +189,7 @@ importers:
         version: link:../software
       '@platforma-sdk/workflow-tengo':
         specifier: 'catalog:'
-        version: 5.20.1
+        version: 5.21.0
       vitest:
         specifier: '*'
         version: 4.1.5(@types/node@25.6.0)(@vitest/coverage-istanbul@4.1.5)(vite@8.0.10(@types/node@25.6.0)(yaml@2.8.3))
@@ -1388,6 +1388,9 @@ packages:
 
   '@platforma-sdk/workflow-tengo@5.20.1':
     resolution: {integrity: sha512-CltEAQR0rQVpEaufge9ok8PqpkG+STrYNEmZOApk4E66tL4bwt/0rlEkhQ4njplcqEMcFRXJvW7QdrgyxziuuA==}
+
+  '@platforma-sdk/workflow-tengo@5.21.0':
+    resolution: {integrity: sha512-E4+d19UIKPlo5/SDzunIFtS9uzXAfpGurT3C2U3q/InkDbAU/mSeJ6ENggvC4od+mymg8btWq3NmUIciqaqgFg==}
 
   '@protobuf-ts/grpc-transport@2.11.1':
     resolution: {integrity: sha512-l6wrcFffY+tuNnuyrNCkRM8hDIsAZVLA8Mn7PKdVyYxITosYh60qW663p9kL6TWXYuDCL3oxH8ih3vLKTDyhtg==}
@@ -7983,6 +7986,13 @@ snapshots:
       - universal-cookie
 
   '@platforma-sdk/workflow-tengo@5.20.1':
+    dependencies:
+      '@milaboratories/software-pframes-conv': 2.2.9
+      '@platforma-open/milaboratories.software-ptabler': 1.16.1
+      '@platforma-open/milaboratories.software-ptexter': 1.2.2
+      '@platforma-open/milaboratories.software-small-binaries': 2.0.4
+
+  '@platforma-sdk/workflow-tengo@5.21.0':
     dependencies:
       '@milaboratories/software-pframes-conv': 2.2.9
       '@platforma-open/milaboratories.software-ptabler': 1.16.1

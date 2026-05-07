@@ -16,7 +16,6 @@ import {
   PlBtnGroup,
   PlDatasetSelector,
   PlDropdown,
-  PlLogView,
   PlMaskIcon24,
   PlNumberField,
   PlSlideModal,
@@ -47,8 +46,6 @@ function setThreshold(value: number | undefined) {
 const tableSettings = usePlDataTableSettingsV2({
   model: () => app.model.outputs.structuresTable,
 });
-
-const logOpen = ref(false);
 
 // scFv suspicion alert (R7) — heuristic from the result-pool side: dataset has
 // both heavy and light VDJRegion columns on the same bulk clonotype axis.
@@ -290,12 +287,6 @@ async function downloadPdbForRow(key?: PTableKey) {
       >
         Export PDBs
       </PlBtnExportArchive>
-      <PlBtnGhost @click.stop="() => (logOpen = true)">
-        Logs
-        <template #append>
-          <PlMaskIcon24 name="file-logs" />
-        </template>
-      </PlBtnGhost>
       <PlBtnGhost @click.stop="() => (settingsOpen = true)">
         Settings
         <template #append>
@@ -423,7 +414,7 @@ async function downloadPdbForRow(key?: PTableKey) {
           v-model="app.model.data.batchSize"
           label="Batch size"
           :min-value="1"
-          :max-value="500"
+          :max-value="1000"
           :step="10"
         >
           <template #tooltip>
@@ -461,11 +452,6 @@ async function downloadPdbForRow(key?: PTableKey) {
           :step="4"
         />
       </PlAccordionSection>
-    </PlSlideModal>
-
-    <PlSlideModal v-model="logOpen" width="80%">
-      <template #title>ImmuneBuilder log</template>
-      <PlLogView :log-handle="app.model.outputs.predictionLogHandle" />
     </PlSlideModal>
   </PlBlockPage>
 </template>

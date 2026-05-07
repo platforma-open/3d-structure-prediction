@@ -8,13 +8,11 @@ import type {
   PFrameHandle,
   PlDataTableModel,
   PlRef,
-  PObjectId,
   PObjectSpec,
 } from "@platforma-sdk/model";
 import {
   BlockModelV3,
   buildDatasetOptions,
-  createDiscoveredPColumnId,
   createPFrameForGraphs,
   createPlDataTableV3,
   isPColumnSpec,
@@ -225,22 +223,24 @@ export const platforma = BlockModelV3.create(blockDataModel)
     if (acc === undefined) return undefined;
     const snapshots = new OutputColumnProvider(acc).getAllColumns();
     if (snapshots.length === 0) return undefined;
+
+    // Pick any value-bearing snapshot as the row-axis anchor. Discovery is
+    // axis-driven, so the specific column doesn't matter — only its axesSpec.
+    const anchorSpec = (snapshots.find((s) => s.spec.name !== "pl7.app/label") ?? snapshots[0])
+      .spec;
+
+    // Use the discoverColumnOptions form so V3 runs `getMatchingLabelColumns`
+    // and surfaces `pl7.app/label` columns as axis-value substitutions
+    // (matches V2 behavior). Sources are limited to our own output PFrame
+    // (`OutputColumnProvider(acc)`) — the label column we emit from the
+    // python wrapper is part of `acc` and gets discovered there. maxHops: 0
+    // disables linker-chain traversal since our PFrame is self-contained.
     return createPlDataTableV3(ctx, {
-      columns: snapshots.map((s) => ({
-        column: {
-          ...s,
-          id: createDiscoveredPColumnId({
-            column: s.id as PObjectId,
-            path: [],
-            columnQualifications: [],
-            queriesQualifications: {},
-          }),
-        },
-        originalId: s.id as PObjectId,
-        qualifications: { forQueries: {}, forHit: [] },
-        path: [],
-        isPrimary: true,
-      })),
+      columns: {
+        sources: [new OutputColumnProvider(acc)],
+        anchors: { main: anchorSpec },
+        selector: { mode: "enrichment", maxHops: 0 },
+      },
       tableState: ctx.data.tableState,
     });
   })
@@ -278,12 +278,11 @@ export const platforma = BlockModelV3.create(blockDataModel)
     return col ? { columnId: col.id, spec: col.spec } : undefined;
   })
 
-  // Aggregate stats produced by the Python wrapper. Schema is documented in
-  // run_immunebuilder.py:_build_summary — keep this output's shape in sync.
-  .output("failureStats", (ctx) => {
-    const raw = ctx.outputs?.resolve("summary")?.getDataAsJson();
-    return raw as PredictionSummary | undefined;
-  })
+  // Aggregate stats are not produced in batch mode — each batch has its own
+  // summary, cross-batch aggregation is not currently wired. Returning
+  // undefined keeps the UI alerts (failure-rate, etc.) from throwing; they
+  // simply don't render.
+  .output("failureStats", (_ctx): PredictionSummary | undefined => undefined)
 
   // PDB ResourceMap: clonotypeKey → File handle. Built by the
   // build-pdbs-map workdir processor template. Used by the UI for per-row
@@ -345,8 +344,6 @@ export const platforma = BlockModelV3.create(blockDataModel)
     );
     return (heavyOpts?.length ?? 0) > 0 && (lightOpts?.length ?? 0) > 0;
   })
-
-  .output("predictionLogHandle", (ctx) => ctx.outputs?.resolve("predictionLog")?.getLogHandle())
 
   .title(() => "3D Structure Prediction")
 
