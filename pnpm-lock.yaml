@@ -22,8 +22,8 @@ catalogs:
       specifier: 1.2.3
       version: 1.2.3
     '@platforma-open/milaboratories.runenv-python-3':
-      specifier: 1.7.12
-      version: 1.7.12
+      specifier: 1.8.6
+      version: 1.8.6
     '@platforma-sdk/block-tools':
       specifier: 2.7.19
       version: 2.7.19
@@ -68,7 +68,7 @@ importers:
         version: 2.29.8(@types/node@25.6.0)
       '@milaboratories/ts-builder':
         specifier: 'catalog:'
-        version: 1.3.2(@types/node@25.6.0)(rollup@4.60.2)(vue@3.5.33(typescript@5.9.3))(yaml@2.8.3)
+        version: 1.3.2(@types/node@25.6.0)(rollup@4.60.2)(vue@3.5.33(typescript@6.0.3))(yaml@2.8.3)
       '@platforma-sdk/block-tools':
         specifier: 'catalog:'
         version: 2.7.19
@@ -127,7 +127,7 @@ importers:
     devDependencies:
       '@platforma-open/milaboratories.runenv-python-3':
         specifier: 'catalog:'
-        version: 1.7.12
+        version: 1.8.6
       '@platforma-sdk/package-builder':
         specifier: 'catalog:'
         version: 3.12.0
@@ -1315,8 +1315,8 @@ packages:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
 
-  '@platforma-open/milaboratories.runenv-python-3.12.10-atls@1.2.4':
-    resolution: {integrity: sha512-yeklY7ISewNOQ5TWlNLRi6VSOGfcdTJPoDWtf5Z8na3xPP56fWZFuckX/ixZpGvcoyBSQf1kFBFnHPginX7jCw==}
+  '@platforma-open/milaboratories.runenv-python-3.12.10-atls@1.2.7':
+    resolution: {integrity: sha512-vJiU68NKgyupW5meeWB/pZZ8y5wewPV6/EcRQ2BwUhSyikDQrn83XzBlc/nTu9UmbYmBqQTrt59x0qKtcC0ILw==}
 
   '@platforma-open/milaboratories.runenv-python-3.12.10-h5ad@1.1.4':
     resolution: {integrity: sha512-Yo47x/rm/FF8x/7q2o7TXdAS7pEWqBd/+aHnQzgNAF0DYljzln99mq1L4lMrQx08SJBGrh84ZtgQl/weTzWSIw==}
@@ -1330,11 +1330,14 @@ packages:
   '@platforma-open/milaboratories.runenv-python-3.12.10-sccoda@1.3.5':
     resolution: {integrity: sha512-oNkt0u8fgZACcL3XmAu4v0tDGnTSc3qRQs07U8OFX+paQk7qH4ckt0psLGN1iHDKZ3Gw3nlgel0D6Lst02WahQ==}
 
-  '@platforma-open/milaboratories.runenv-python-3.12.10@1.3.8':
-    resolution: {integrity: sha512-9mgnTK4qwM4Ca3CPzmOxE21CcK7aPJRjzn1EVuT4PIUcI1itDFb0FxpKJfgp8/pb0KCD9x2+YL7iHtr8yUwuWQ==}
+  '@platforma-open/milaboratories.runenv-python-3.12.10-scientific-slim@1.1.0':
+    resolution: {integrity: sha512-CSLEjBYUdHDf66QAfgQ9jo+MoW63Wr0ygdIncJE2siO2jMUzYCqgCNd8bMjaMfZa3YBC9bHca3Cjxbp4VYc54A==}
 
-  '@platforma-open/milaboratories.runenv-python-3@1.7.12':
-    resolution: {integrity: sha512-MSIdrhIRF07Ky2J/PASWEJTlzVXvLuXfS/XmlGesSaBzocZoA6v/NrlOxXOpa/92dDW/Oi1HzwVp5ZIq3gcbYg==}
+  '@platforma-open/milaboratories.runenv-python-3.12.10@1.3.11':
+    resolution: {integrity: sha512-bzp/YmG182hu2mbG8RtaKLM0ov1c+3hhEpXSwANKwqvkHtdYrFjQGKpZIcU8TdXb50eQovDPKuX6LifW34lmAw==}
+
+  '@platforma-open/milaboratories.runenv-python-3@1.8.6':
+    resolution: {integrity: sha512-3gFywXeJbwFenwl4e504MtHCVAxvFklvg5ivP2xviZNebSzQm3biU2/A6Q8v/vAtLU2rdzMO1eO/7vDwqsPS8g==}
 
   '@platforma-open/milaboratories.software-ptabler.schema@1.15.4':
     resolution: {integrity: sha512-3sIWl5ub5eZLdmACRTYhSkZcVziGE1UqXQRPPUkwY+T+g3y071RNGbjomeeAOL1WEWMKHetD37PG5o9hIIAc2g==}
@@ -7342,46 +7345,6 @@ snapshots:
 
   '@milaboratories/tengo-tester@1.6.4': {}
 
-  '@milaboratories/ts-builder@1.3.2(@types/node@25.6.0)(rollup@4.60.2)(vue@3.5.33(typescript@5.9.3))(yaml@2.8.3)':
-    dependencies:
-      '@milaboratories/ts-configs': 1.2.3
-      '@vitejs/plugin-vue': 6.0.6(vite@8.0.10(@types/node@25.6.0)(yaml@2.8.3))(vue@3.5.33(typescript@5.9.3))
-      commander: 12.1.0
-      jsonc-parser: 3.3.1
-      oxfmt: 0.35.0
-      oxlint: 1.43.0
-      rolldown: 1.0.0-rc.17
-      rolldown-plugin-dts: 0.23.2(rolldown@1.0.0-rc.17)(typescript@5.9.3)(vue-tsc@3.2.7(typescript@5.9.3))
-      rollup-plugin-copy: 3.5.0
-      rollup-plugin-sourcemaps2: 0.5.6(@types/node@25.6.0)(rollup@4.60.2)
-      typescript: 5.9.3
-      vite: 8.0.10(@types/node@25.6.0)(yaml@2.8.3)
-      vite-plugin-commonjs: 0.10.4
-      vite-plugin-dts: 4.5.4(@types/node@25.6.0)(rollup@4.60.2)(typescript@5.9.3)(vite@8.0.10(@types/node@25.6.0)(yaml@2.8.3))
-      vite-plugin-externalize-deps: 0.10.0(vite@8.0.10(@types/node@25.6.0)(yaml@2.8.3))
-      vite-plugin-lib-inject-css: 2.2.2(vite@8.0.10(@types/node@25.6.0)(yaml@2.8.3))
-      vue-tsc: 3.2.7(typescript@5.9.3)
-    transitivePeerDependencies:
-      - '@ts-macro/tsc'
-      - '@types/node'
-      - '@typescript/native-preview'
-      - '@vitejs/devtools'
-      - esbuild
-      - jiti
-      - less
-      - oxc-resolver
-      - oxlint-tsgolint
-      - rollup
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - supports-color
-      - terser
-      - tsx
-      - vue
-      - yaml
-
   '@milaboratories/ts-builder@1.3.2(@types/node@25.6.0)(rollup@4.60.2)(vue@3.5.33(typescript@6.0.3))(yaml@2.8.3)':
     dependencies:
       '@milaboratories/ts-configs': 1.2.3
@@ -7391,7 +7354,7 @@ snapshots:
       oxfmt: 0.35.0
       oxlint: 1.43.0
       rolldown: 1.0.0-rc.17
-      rolldown-plugin-dts: 0.23.2(rolldown@1.0.0-rc.17)(typescript@5.9.3)(vue-tsc@3.2.7(typescript@5.9.3))
+      rolldown-plugin-dts: 0.23.2(rolldown@1.0.0-rc.17)(typescript@5.9.3)(vue-tsc@3.2.7(typescript@6.0.3))
       rollup-plugin-copy: 3.5.0
       rollup-plugin-sourcemaps2: 0.5.6(@types/node@25.6.0)(rollup@4.60.2)
       typescript: 5.9.3
@@ -7807,7 +7770,7 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
-  '@platforma-open/milaboratories.runenv-python-3.12.10-atls@1.2.4': {}
+  '@platforma-open/milaboratories.runenv-python-3.12.10-atls@1.2.7': {}
 
   '@platforma-open/milaboratories.runenv-python-3.12.10-h5ad@1.1.4': {}
 
@@ -7817,16 +7780,19 @@ snapshots:
 
   '@platforma-open/milaboratories.runenv-python-3.12.10-sccoda@1.3.5': {}
 
-  '@platforma-open/milaboratories.runenv-python-3.12.10@1.3.8': {}
+  '@platforma-open/milaboratories.runenv-python-3.12.10-scientific-slim@1.1.0': {}
 
-  '@platforma-open/milaboratories.runenv-python-3@1.7.12':
+  '@platforma-open/milaboratories.runenv-python-3.12.10@1.3.11': {}
+
+  '@platforma-open/milaboratories.runenv-python-3@1.8.6':
     dependencies:
-      '@platforma-open/milaboratories.runenv-python-3.12.10': 1.3.8
-      '@platforma-open/milaboratories.runenv-python-3.12.10-atls': 1.2.4
+      '@platforma-open/milaboratories.runenv-python-3.12.10': 1.3.11
+      '@platforma-open/milaboratories.runenv-python-3.12.10-atls': 1.2.7
       '@platforma-open/milaboratories.runenv-python-3.12.10-h5ad': 1.1.4
       '@platforma-open/milaboratories.runenv-python-3.12.10-parapred': 1.1.0
       '@platforma-open/milaboratories.runenv-python-3.12.10-rapids': 1.6.0
       '@platforma-open/milaboratories.runenv-python-3.12.10-sccoda': 1.3.5
+      '@platforma-open/milaboratories.runenv-python-3.12.10-scientific-slim': 1.1.0
 
   '@platforma-open/milaboratories.software-ptabler.schema@1.15.4':
     dependencies:
@@ -11057,12 +11023,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitejs/plugin-vue@6.0.6(vite@8.0.10(@types/node@25.6.0)(yaml@2.8.3))(vue@3.5.33(typescript@5.9.3))':
-    dependencies:
-      '@rolldown/pluginutils': 1.0.0-rc.13
-      vite: 8.0.10(@types/node@25.6.0)(yaml@2.8.3)
-      vue: 3.5.33(typescript@5.9.3)
-
   '@vitejs/plugin-vue@6.0.6(vite@8.0.10(@types/node@25.6.0)(yaml@2.8.3))(vue@3.5.33(typescript@6.0.3))':
     dependencies:
       '@rolldown/pluginutils': 1.0.0-rc.13
@@ -11211,12 +11171,6 @@ snapshots:
       '@vue/runtime-core': 3.5.33
       '@vue/shared': 3.5.33
       csstype: 3.2.3
-
-  '@vue/server-renderer@3.5.33(vue@3.5.33(typescript@5.9.3))':
-    dependencies:
-      '@vue/compiler-ssr': 3.5.33
-      '@vue/shared': 3.5.33
-      vue: 3.5.33(typescript@5.9.3)
 
   '@vue/server-renderer@3.5.33(vue@3.5.33(typescript@6.0.3))':
     dependencies:
@@ -12751,7 +12705,7 @@ snapshots:
 
   reusify@1.1.0: {}
 
-  rolldown-plugin-dts@0.23.2(rolldown@1.0.0-rc.17)(typescript@5.9.3)(vue-tsc@3.2.7(typescript@5.9.3)):
+  rolldown-plugin-dts@0.23.2(rolldown@1.0.0-rc.17)(typescript@5.9.3)(vue-tsc@3.2.7(typescript@6.0.3)):
     dependencies:
       '@babel/generator': 8.0.0-rc.3
       '@babel/helper-validator-identifier': 8.0.0-rc.3
@@ -13262,16 +13216,6 @@ snapshots:
     dependencies:
       '@volar/typescript': 2.4.28
       '@vue/language-core': 3.2.7
-      typescript: 5.9.3
-
-  vue@3.5.33(typescript@5.9.3):
-    dependencies:
-      '@vue/compiler-dom': 3.5.33
-      '@vue/compiler-sfc': 3.5.33
-      '@vue/runtime-dom': 3.5.33
-      '@vue/server-renderer': 3.5.33(vue@3.5.33(typescript@5.9.3))
-      '@vue/shared': 3.5.33
-    optionalDependencies:
       typescript: 5.9.3
 
   vue@3.5.33(typescript@6.0.3):
