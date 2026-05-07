@@ -27,7 +27,7 @@
       "logo": "file:../logos/block-logo.png",
       "url": "https://github.com/platforma-open/milaboratories.3d-structure-prediction",
       "support": "mailto:support@milaboratories.com",
-      "description": "Predicts antibody 3D structures with ImmuneBuilder and emits per-clonotype PDB files plus per-residue pLDDT confidence scores.",
+      "description": "Predicts antibody and VHH 3D structures with ImmuneBuilder. Emits IMGT-numbered per-clonotype PDB files with per-residue confidence.",
       "longDescription": "file:../docs/description.md",
       "changelog": "file:../CHANGELOG.md",
       "tags": [
