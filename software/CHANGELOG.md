@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.3d-structure-prediction.software
 
+## 1.0.3
+
+### Patch Changes
+
+- 53a03a1: Fix dependency resolution for docker
+
 ## 1.0.2
 
 ### Patch Changes
