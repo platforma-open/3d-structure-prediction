@@ -33,8 +33,8 @@ RUN micromamba install -y -n base -c bioconda -c conda-forge \
         biopython=1.85 \
         openmm=8.3.1 \
         pdbfixer=1.12.0 \
-        numpy \
-        scipy \
+        numpy=2.4.3 \
+        scipy=1.17.1 \
     && micromamba clean --all --yes
 
 # Activate the base env for every subsequent RUN/CMD layer so pip and
