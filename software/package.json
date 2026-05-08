@@ -21,6 +21,11 @@
           "requirements": "requirements.txt"
         },
         "root": "./src_python"
+      },
+      "py-docker": {
+        "type": "docker",
+        "context": "src_python",
+        "dockerfile": "Dockerfile"
       }
     },
     "entrypoints": {
@@ -30,6 +35,13 @@
           "cmd": [
             "python",
             "{pkg}/run_immunebuilder.py"
+          ]
+        },
+        "docker": {
+          "artifact": "py-docker",
+          "cmd": [
+            "python",
+            "/app/run_immunebuilder.py"
           ]
         }
       }
