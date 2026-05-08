@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.3d-structure-prediction.software
 
+## 1.0.4
+
+### Patch Changes
+
+- 7a0fedd: Fix docker permissions
+
 ## 1.0.3
 
 ### Patch Changes
