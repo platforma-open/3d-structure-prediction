@@ -139,8 +139,6 @@ export const platforma = BlockModelV3.create(blockDataModel)
       confidenceThresholdAngstroms: data.confidenceThresholdAngstroms,
       batchSize: data.batchSize,
       torchSeed: data.torchSeed,
-      mem: data.mem,
-      cpu: data.cpu,
     };
   })
 

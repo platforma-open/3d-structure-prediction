@@ -320,12 +320,21 @@ function handleViewerVisibility(open: boolean) {
         v-model="app.model.data.lightChainRef"
         :options="app.model.outputs.sequenceOptions"
         :disabled="app.model.data.dataset === undefined"
-        label="Light chain sequence (leave empty for VHH)"
+        label="Light chain sequence (optional)"
         clearable
-      />
+      >
+        <template #tooltip>
+          Leave empty for VHH/nanobody data, or for bulk samples where only the heavy chain was
+          sequenced.
+        </template>
+      </PlDropdown>
 
       <PlAlert v-if="effectiveMode === 'NanoBodyBuilder2'" type="info">
-        Light chain not set — predicting single-domain (VHH) structures with NanoBodyBuilder2.
+        Light chain not set — predicting with NanoBodyBuilder2. NanoBodyBuilder2 is trained
+        exclusively on camelid VHHs, so for true VHH/nanobody inputs this is the right model. For
+        conventional heavy chains without a paired light chain (e.g. human bulk IGH-only), a
+        structure is still produced, but framework geometry — especially the VL-facing side of FR2 —
+        is biased by the VHH training distribution.
       </PlAlert>
 
       <PlBtnGroup
@@ -393,22 +402,6 @@ function handleViewerVisibility(open: boolean) {
             to gauge how sensitive a prediction is to the model's stochastic ensemble.
           </template>
         </PlNumberField>
-
-        <PlNumberField
-          v-model="app.model.data.cpu"
-          label="CPU cores per batch"
-          :min-value="1"
-          :max-value="32"
-          :step="1"
-        />
-
-        <PlNumberField
-          v-model="app.model.data.mem"
-          label="Memory per batch (GiB)"
-          :min-value="4"
-          :max-value="128"
-          :step="4"
-        />
       </PlAccordionSection>
     </PlSlideModal>
 

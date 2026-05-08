@@ -51,22 +51,21 @@ import hashlib
 import json
 import os
 import sys
-import time
 import traceback
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 
 
 def _log(message: str) -> None:
     """Line-buffered log entry to stderr.
 
-    Workflow uses `printErrStreamToStdout` + `saveStdoutStream`; the resulting
-    log handle is consumed by `PlLogView` in the UI. Every line is timestamped
-    so users can track progress across long-running batches.
+    The exec template saves the stdout stream as a regular file output, so
+    the saved-file blob's content hash flows into the resource CID. Wall
+    clock timestamps and elapsed-time durations would make the saved log
+    byte-different on every run and break the platforma backend's
+    content-addressed caching. Keep log lines fully determined by inputs.
     """
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    print(f"[{ts}] {message}", file=sys.stderr, flush=True)
+    print(message, file=sys.stderr, flush=True)
 
 from numbering import cdrh3_length as imgt_cdrh3_length
 from numbering import extract_numbered_residues, vhh_hallmarks_present
@@ -407,9 +406,8 @@ def process_batch(
     _set_seed(seed)
     if rows:
         _log(f"loading {mode} ensemble (4 models)")
-        predictor_t0 = time.time()
         predictor = _load_predictor(mode)
-        _log(f"predictor ready in {time.time() - predictor_t0:.1f}s")
+        _log("predictor ready")
     else:
         predictor = None
 
@@ -422,7 +420,6 @@ def process_batch(
     fail_count = 0
     success_count = 0
     cache_hits = 0
-    run_t0 = time.time()
 
     for row_idx, row in enumerate(rows):
         key = row.get(key_col, "")
@@ -455,12 +452,10 @@ def process_batch(
         antibody = prediction_cache.get(cache_key)
         if antibody is None:
             try:
-                pred_t0 = time.time()
                 antibody = _predict_one(predictor, mode, sanitized.vh, sanitized.vl)
-                pred_dt = time.time() - pred_t0
                 prediction_cache[cache_key] = antibody
                 if (row_idx + 1) % log_every == 0 or row_idx == 0:
-                    _log(f"{prefix} predicted in {pred_dt:.1f}s")
+                    _log(f"{prefix} predicted")
             except Exception as exc:  # noqa: BLE001
                 fail_count += 1
                 _log(f"{prefix} FAIL ImmuneBuilder {type(exc).__name__}: {exc}")
@@ -563,11 +558,10 @@ def process_batch(
         with open(summary_json, "w") as f:
             json.dump(summary, f)
 
-    elapsed = time.time() - run_t0 if rows else 0.0
     _log(
         f"done total={summary['totalRows']} succeeded={summary['succeeded']} "
         f"failed={summary['failed']} confident={summary['confidentCount']} "
-        f"cache_hits={cache_hits} elapsed={elapsed:.1f}s"
+        f"cache_hits={cache_hits}"
     )
     if summary["byFailureReason"]:
         for reason, n_fail in sorted(

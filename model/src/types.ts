@@ -30,8 +30,6 @@ export type BlockArgs = {
 
   batchSize: number;
   torchSeed: number;
-  mem?: number;
-  cpu?: number;
 };
 
 /**
@@ -55,8 +53,6 @@ export type BlockData = {
 
   batchSize: number;
   torchSeed: number;
-  mem?: number;
-  cpu?: number;
 
   tableState: PlDataTableStateV2;
   graphStateMeanV2: GraphMakerState;
