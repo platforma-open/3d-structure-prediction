@@ -55,6 +55,15 @@ RUN pip install --no-cache-dir \
         --extra-index-url https://download.pytorch.org/whl/cpu \
         -r /tmp/requirements.txt
 
+# Pre-download model weights into the image. ImmuneBuilder otherwise writes
+# them into its own site-packages dir (/opt/conda/.../ImmuneBuilder/trained_model/)
+# on first use. That works locally because we're root, but cloud runtimes
+# run as a non-root user and hit PermissionError. Doing the download at
+# build time bakes ~400 MB of weights into the image and the runtime is
+# read-only there, which is what we want.
+RUN python -c "from ImmuneBuilder import ABodyBuilder2, NanoBodyBuilder2; ABodyBuilder2(); NanoBodyBuilder2()" \
+    && chmod -R a+rX /opt/conda/lib/python3.12/site-packages/ImmuneBuilder/trained_model
+
 # Block sources (everything in src_python/).
 WORKDIR /app
 COPY . /app/
