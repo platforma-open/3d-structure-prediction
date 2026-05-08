@@ -19,16 +19,20 @@ FROM mambaorg/micromamba:1.5.10
 
 USER root
 
-# ANARCI (with HMMER + prebuilt HMM database), biopython, openmm, pdbfixer
-# all come from bioconda / conda-forge. Pinning python=3.12 to match the
-# local runenv interpreter version.
+# anarci and hmmer are deliberately left unpinned: bioconda's recipe builds
+# the HMM database at install time and the database depends on the HMMER
+# version, so locking the hash for both pkgs at once is fragile across
+# bioconda updates. After the first successful CI build, run
+#   micromamba list -n base anarci hmmer
+# inside the image and copy the resulting build strings here if you need
+# bit-identical reproducibility.
 RUN micromamba install -y -n base -c bioconda -c conda-forge \
-        python=3.12 \
+        python=3.12.10 \
         anarci \
         hmmer \
-        biopython \
+        biopython=1.85 \
         openmm=8.3.1 \
-        pdbfixer \
+        pdbfixer=1.12.0 \
     && micromamba clean --all --yes
 
 # Activate the base env for every subsequent RUN/CMD layer so pip and
