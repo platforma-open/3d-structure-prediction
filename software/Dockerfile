@@ -33,12 +33,19 @@ RUN micromamba install -y -n base -c bioconda -c conda-forge \
         biopython=1.85 \
         openmm=8.3.1 \
         pdbfixer=1.12.0 \
+        numpy \
+        scipy \
     && micromamba clean --all --yes
 
 # Activate the base env for every subsequent RUN/CMD layer so pip and
 # python resolve to /opt/conda/{bin,lib}.
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 ENV PATH=/opt/conda/bin:$PATH
+
+# Make conda's libstdc++ (and friends) win over the older system libs in
+# /lib/x86_64-linux-gnu. Pip-installed extension wheels (manylinux2014+)
+# expect a recent CXXABI; the base image's system libstdc++ predates it.
+ENV LD_LIBRARY_PATH=/opt/conda/lib
 
 # Layer pip-only deps (ImmuneBuilder + CPU torch). Anything bioconda
 # already provides is re-resolved by pip; pinned versions in
