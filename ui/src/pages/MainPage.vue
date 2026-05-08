@@ -302,7 +302,6 @@ function handleViewerVisibility(open: boolean) {
         v-model="app.model.data.dataset"
         :options="app.model.outputs.datasetOptions"
         label="VDJ dataset"
-        filter-label="Filter (optional)"
         clearable
         required
         @update:model-value="onDatasetChange"
