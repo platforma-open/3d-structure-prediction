@@ -16,7 +16,6 @@ const cdrh3Defaults = computed((): PredefinedGraphOption<"histogram">[] | undefi
 
 <template>
   <PlBlockPage>
-    <template #title>CDR-H3 error distribution</template>
     <GraphMaker
       v-model="app.model.data.graphStateCdrh3V2"
       chart-type="histogram"

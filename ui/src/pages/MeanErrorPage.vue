@@ -16,7 +16,6 @@ const meanDefaults = computed((): PredefinedGraphOption<"histogram">[] | undefin
 
 <template>
   <PlBlockPage>
-    <template #title>Mean error distribution</template>
     <GraphMaker
       v-model="app.model.data.graphStateMeanV2"
       chart-type="histogram"
