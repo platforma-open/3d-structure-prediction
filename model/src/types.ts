@@ -8,6 +8,7 @@ import type {
 
 export type PredictionMode = "ABodyBuilder2" | "NanoBodyBuilder2";
 export type ConfidenceMetric = "cdrh3Mean" | "overallMean";
+export type Species = "human" | "mouse" | "camelid" | "rat" | "rabbit" | "other";
 
 /**
  * Args sent to the workflow — the validated output of `.args(...)`. The
@@ -30,8 +31,6 @@ export type BlockArgs = {
 
   batchSize: number;
   torchSeed: number;
-  mem?: number;
-  cpu?: number;
 };
 
 /**
@@ -39,6 +38,11 @@ export type BlockArgs = {
  * `.args()` derives the workflow args from. Block args (possibly incomplete)
  * live alongside UI state. `dataset` is the opaque `DatasetSelection` emitted
  * by `PlDatasetSelector` (carries the user-picked primary + optional filter).
+ *
+ * `species` is intentionally UI-only (not in `BlockArgs`): the workflow does
+ * not consume it yet, and threading it through would invalidate cached
+ * predictions on every species switch. Wire it into `BlockArgs` when/if
+ * downstream output (e.g. PDB provenance) starts to depend on it.
  */
 export type BlockData = {
   defaultBlockLabel: string;
@@ -49,14 +53,13 @@ export type BlockData = {
   lightChainRef?: SUniversalPColumnId;
 
   mode: PredictionMode;
+  species: Species;
 
   confidenceMetric: ConfidenceMetric;
   confidenceThresholdAngstroms: number;
 
   batchSize: number;
   torchSeed: number;
-  mem?: number;
-  cpu?: number;
 
   tableState: PlDataTableStateV2;
   graphStateMeanV2: GraphMakerState;
@@ -64,6 +67,13 @@ export type BlockData = {
   scFvAlertDismissed: boolean;
   failureAlertDismissed: boolean;
 };
+
+/**
+ * Previous-version `BlockData` schema (pre-species). Kept so the data-model
+ * migration can typecheck `prev` cleanly. Remove only after dropping the
+ * matching migration step in `dataModel.ts`.
+ */
+export type BlockData_Ver_v1 = Omit<BlockData, "species">;
 
 /**
  * Aggregate stats emitted by `run_immunebuilder.py`'s `--summary` output.

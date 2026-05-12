@@ -2,6 +2,7 @@
 import {
   confidenceMetricOptions,
   predictionModeOptions,
+  speciesOptions,
 } from "@platforma-open/milaboratories.3d-structure-prediction.model";
 import type { PlStructureViewerProps } from "@milaboratories/structure-viewer";
 import { PlStructureViewer } from "@milaboratories/structure-viewer";
@@ -38,6 +39,29 @@ function onDatasetChange() {
 }
 
 const effectiveMode = computed(() => app.model.outputs.effectiveMode);
+
+// ABB2 was trained predominantly on human and mouse; everything else carries
+// a confidence caveat per spec R44.
+const nonStandardAbb2Species = computed(
+  () => app.model.data.species !== "human" && app.model.data.species !== "mouse",
+);
+
+// Species/mode guidance is only meaningful once the user has at least picked
+// a heavy chain — earlier the banners would fire on the initial empty form.
+const chainGuidanceVisible = computed(() => app.model.data.heavyChainRef !== undefined);
+
+// Each chain dropdown hides whatever the other has already picked, so the user
+// can't accidentally point both selectors at the same sequence column.
+const heavyChainOptions = computed(() => {
+  const opts = app.model.outputs.sequenceOptions ?? [];
+  const taken = app.model.data.lightChainRef;
+  return taken === undefined ? opts : opts.filter((o) => o.value !== taken);
+});
+const lightChainOptions = computed(() => {
+  const opts = app.model.outputs.sequenceOptions ?? [];
+  const taken = app.model.data.heavyChainRef;
+  return taken === undefined ? opts : opts.filter((o) => o.value !== taken);
+});
 
 // Confidence-threshold helper: format and constrain.
 function setThreshold(value: number | undefined) {
@@ -310,7 +334,7 @@ function handleViewerVisibility(open: boolean) {
 
       <PlDropdown
         v-model="app.model.data.heavyChainRef"
-        :options="app.model.outputs.sequenceOptions"
+        :options="heavyChainOptions"
         :disabled="app.model.data.dataset === undefined"
         label="Heavy chain sequence (full VDJ region)"
         required
@@ -318,14 +342,54 @@ function handleViewerVisibility(open: boolean) {
 
       <PlDropdown
         v-model="app.model.data.lightChainRef"
-        :options="app.model.outputs.sequenceOptions"
+        :options="lightChainOptions"
         :disabled="app.model.data.dataset === undefined"
-        label="Light chain sequence (leave empty for VHH)"
+        label="Light chain sequence (optional)"
         clearable
-      />
+      >
+        <template #tooltip>
+          Leave empty for VHH/nanobody data, or for bulk samples where only the heavy chain was
+          sequenced.
+        </template>
+      </PlDropdown>
 
-      <PlAlert v-if="effectiveMode === 'NanoBodyBuilder2'" type="info">
-        Light chain not set — predicting single-domain (VHH) structures with NanoBodyBuilder2.
+      <PlDropdown
+        v-model="app.model.data.species"
+        :options="speciesOptions"
+        label="Species"
+        required
+      >
+        <template #tooltip>
+          ABodyBuilder2 was trained predominantly on human and mouse antibodies; other species may
+          have reduced accuracy. NanoBodyBuilder2 was trained on camelid VHHs — picking
+          <i>camelid</i> here indicates a genuine nanobody input.
+        </template>
+      </PlDropdown>
+
+      <PlAlert
+        v-if="
+          chainGuidanceVisible &&
+          effectiveMode === 'NanoBodyBuilder2' &&
+          app.model.data.species === 'camelid'
+        "
+        type="info"
+      >
+        Light chain not set — predicting with NanoBodyBuilder2 trained on camelid VHHs.
+      </PlAlert>
+
+      <PlAlert v-else-if="chainGuidanceVisible && effectiveMode === 'NanoBodyBuilder2'" type="warn">
+        Predicting a conventional <b>{{ app.model.data.species }}</b> heavy chain alone with
+        NanoBodyBuilder2. A structure is still produced, but framework geometry, especially the
+        VL-facing side of FR2, is biased by the VHH training distribution. Pair the heavy chain with
+        a light chain column, or set species to <i>camelid</i> if this is a nanobody dataset.
+      </PlAlert>
+
+      <PlAlert
+        v-if="chainGuidanceVisible && effectiveMode === 'ABodyBuilder2' && nonStandardAbb2Species"
+        type="warn"
+      >
+        ABodyBuilder2 was trained predominantly on human and mouse antibodies. Predictions for
+        <b>{{ app.model.data.species }}</b> may have reduced accuracy.
       </PlAlert>
 
       <PlBtnGroup
@@ -393,22 +457,6 @@ function handleViewerVisibility(open: boolean) {
             to gauge how sensitive a prediction is to the model's stochastic ensemble.
           </template>
         </PlNumberField>
-
-        <PlNumberField
-          v-model="app.model.data.cpu"
-          label="CPU cores per batch"
-          :min-value="1"
-          :max-value="32"
-          :step="1"
-        />
-
-        <PlNumberField
-          v-model="app.model.data.mem"
-          label="Memory per batch (GiB)"
-          :min-value="4"
-          :max-value="128"
-          :step="4"
-        />
       </PlAccordionSection>
     </PlSlideModal>
 

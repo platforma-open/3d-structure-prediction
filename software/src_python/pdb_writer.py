@@ -3,8 +3,13 @@
 ImmuneBuilder writes a standard PDB. Per spec R26/R28/R29 we need to:
  - Clamp per-atom B-factor to [0.00, 99.99] to fit PDB `%6.2f` precision.
  - Inject a TITLE line identifying the predictor.
- - Inject REMARK 99 PROVENANCE block (version, seed, block version, ISO date).
+ - Inject REMARK 99 PROVENANCE block (version, seed, block version).
  - Inject REMARK 99 CDR* records with IMGT CDR ranges.
+
+PDB content must be byte-stable for identical inputs so the platforma
+backend can cache and reuse downstream results — a wall-clock prediction
+timestamp would break every run's CID, so we omit it. The seed + version
+fields plus the input sequences are sufficient to reproduce the prediction.
 
 The cleanest approach is: let ImmuneBuilder write a temp PDB, then post-
 process the lines — injecting REMARKs after TITLE and clamping B-factors on
@@ -13,17 +18,12 @@ ATOM/HETATM lines in one pass.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from pathlib import Path
 
 from numbering import IMGT_CDR_RANGES, cdr_ranges_in_pdb_notation
 
 B_FACTOR_MIN = 0.00
 B_FACTOR_MAX = 99.99
-
-
-def _iso_now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _clamp_b_factor(line: str) -> tuple[str, bool]:
@@ -67,7 +67,6 @@ def _provenance_remark_lines(
         f"REMARK  99 PROVENANCE immunebuilder-version={immunebuilder_version}",
         f"REMARK  99 PROVENANCE torch-seed={torch_seed}",
         f"REMARK  99 PROVENANCE block-version={block_version}",
-        f"REMARK  99 PROVENANCE prediction-date={_iso_now()}",
         f"REMARK  99 PROVENANCE numbering-scheme={numbering_scheme}",
     ]
 

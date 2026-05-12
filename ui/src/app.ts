@@ -41,6 +41,7 @@ const unwatch = watch(sdkPlugin, ({ loaded }) => {
   watchEffect(() => {
     app.model.data.defaultBlockLabel = defaultBlockLabelFor({
       mode: app.model.data.mode,
+      species: app.model.data.species,
       confidenceMetric: app.model.data.confidenceMetric,
       confidenceThresholdAngstroms: app.model.data.confidenceThresholdAngstroms,
       batchSize: app.model.data.batchSize,

@@ -1,0 +1,204 @@
+ll := import("@platforma-sdk/workflow-tengo:ll")
+
+confidenceColumn := func(columnId, pName, label, extraAnnotations) {
+	annotations := {
+		"pl7.app/label": label,
+		"pl7.app/structure/confidenceMetric": "predictedErrorAngstroms"
+	}
+	for k, v in extraAnnotations { annotations[k] = v }
+	return {
+		column: columnId,
+		id: columnId,
+		spec: {
+			valueType: "Double",
+			name: pName,
+			annotations: annotations
+		}
+	}
+}
+
+// Per-batch confidence.tsv → typed PColumns. The processColumn orchestrator
+// adds the batch-key axis (clonotype) automatically; the caller passes
+// `batchKeyColumns: [clonotypeAxisName]` alongside this column list.
+//
+// `clonotypeLabel` is echoed by the python wrapper so the V3 structures
+// table substitutes it into the row-axis cells (single-axis pl7.app/label
+// PColumn → recognised by PlAgDataTable's `isLabelColumn`).
+//
+// failureReason / warning come in two flavours:
+//   - the *Text columns carry human-readable strings (translated python-side)
+//     and are surfaced in the table.
+//   - the code columns retain the raw enum value, hidden by default; they
+//     stay in the schema so downstream blocks / future failure-stats logic
+//     can group on a stable identifier.
+getConfidenceColumns := func(isPaired) {
+	cols := [
+		{
+			column: "clonotypeLabel",
+			id: "clonotypeLabel",
+			spec: {
+				valueType: "String",
+				name: "pl7.app/label",
+				annotations: {
+					"pl7.app/label": "Clone",
+					"pl7.app/table/orderPriority": "100000"
+				}
+			}
+		},
+		confidenceColumn("meanError", "pl7.app/structure/confidence/mean",
+			"Mean error (Å)", { "pl7.app/isScore": "true", "pl7.app/table/orderPriority": "90000" }),
+		confidenceColumn("cdrh1Error", "pl7.app/structure/confidence/cdrh1", "CDRH1 error (Å)", {}),
+		confidenceColumn("cdrh2Error", "pl7.app/structure/confidence/cdrh2", "CDRH2 error (Å)", {}),
+		confidenceColumn("cdrh3Error", "pl7.app/structure/confidence/cdrh3", "CDRH3 error (Å)",
+			{
+				"pl7.app/isScore": "true",
+				"pl7.app/table/orderPriority": "89000",
+				"pl7.app/description": "ABodyBuilder2 accuracy degrades for CDRH3 ≥ ~20 aa (Abanades et al., 2023, Fig. 4); long-CDRH3 predictions should be treated as lower-confidence regardless of the error value."
+			})
+	]
+	if isPaired {
+		cols = append(cols,
+			confidenceColumn("cdrl1Error", "pl7.app/structure/confidence/cdrl1", "CDRL1 error (Å)", {}))
+		cols = append(cols,
+			confidenceColumn("cdrl2Error", "pl7.app/structure/confidence/cdrl2", "CDRL2 error (Å)", {}))
+		cols = append(cols,
+			confidenceColumn("cdrl3Error", "pl7.app/structure/confidence/cdrl3", "CDRL3 error (Å)", {}))
+	}
+	cols = append(cols, {
+		column: "perResidueError",
+		id: "perResidueError",
+		spec: {
+			valueType: "String",
+			name: "pl7.app/structure/confidence/perResidue",
+			annotations: {
+				"pl7.app/label": "Per-residue error (JSON)",
+				"pl7.app/structure/confidenceMetric": "predictedErrorAngstroms",
+				"pl7.app/structure/perResidueSchema": "json_pos_chain_err_v1",
+				"pl7.app/table/visibility": "hidden"
+			}
+		}
+	})
+	cols = append(cols, {
+		column: "cdrh3Length",
+		id: "cdrh3Length",
+		spec: {
+			valueType: "Long",
+			name: "pl7.app/structure/cdrh3Length",
+			annotations: { "pl7.app/label": "CDRH3 length (aa)" }
+		}
+	})
+	cols = append(cols, {
+		column: "failureReasonText",
+		id: "failureReasonText",
+		spec: {
+			valueType: "String",
+			name: "pl7.app/structure/failureReason/text",
+			annotations: {
+				"pl7.app/label": "Failure reason",
+				"pl7.app/table/visibility": "optional"
+			}
+		}
+	})
+	cols = append(cols, {
+		column: "failureReason",
+		id: "failureReason",
+		spec: {
+			valueType: "String",
+			name: "pl7.app/structure/failureReason",
+			annotations: {
+				"pl7.app/label": "Failure reason (code)",
+				"pl7.app/table/visibility": "hidden"
+			}
+		}
+	})
+	cols = append(cols, {
+		column: "warningText",
+		id: "warningText",
+		spec: {
+			valueType: "String",
+			name: "pl7.app/structure/warning/text",
+			annotations: {
+				"pl7.app/label": "Warnings",
+				"pl7.app/table/visibility": "optional"
+			}
+		}
+	})
+	cols = append(cols, {
+		column: "warning",
+		id: "warning",
+		spec: {
+			valueType: "String",
+			name: "pl7.app/structure/warning",
+			annotations: {
+				"pl7.app/label": "Warnings (codes)",
+				"pl7.app/table/visibility": "hidden"
+			}
+		}
+	})
+	return cols
+}
+
+// PDB ResourceMap spec — produced by the batch orchestrator (merged across
+// batches via merge-resource-maps). Failed clonotypes have no entry.
+getPdbsMapSpec := func() {
+	return {
+		kind: "PColumn",
+		name: "pl7.app/structure/pdb",
+		domain: { "pl7.app/structure/numbering": "imgt" },
+		valueType: "File",
+		axesSpec: [],
+		annotations: {
+			"pl7.app/label": "Predicted PDB structure",
+			"pl7.app/structure/numbering": "imgt"
+		}
+	}
+}
+
+// xsv.importFile settings for the predictionSuccessful subset PColumn —
+// 1 = prediction succeeded (failureReason was null), 0 = failed.
+getPredictionSuccessfulSettings := func(clonotypeAxisSpec, clonotypeAxisName) {
+	return {
+		axes: [{ column: clonotypeAxisName, spec: clonotypeAxisSpec }],
+		columns: [{
+			column: "predictionSuccessful",
+			spec: {
+				valueType: "Int",
+				name: "pl7.app/structure/predictionSuccessful",
+				annotations: {
+					"pl7.app/label": "Structure predicted",
+					"pl7.app/isSubset": "true",
+					"pl7.app/table/visibility": "hidden"
+				}
+			}
+		}],
+		storageFormat: "Parquet"
+	}
+}
+
+// xsv.importFile settings for the `confident` subset PColumn — 1 when the
+// user-selected confidence metric is ≤ threshold AND prediction succeeded.
+getConfidentSettings := func(clonotypeAxisSpec, clonotypeAxisName, confidenceMetric, threshold) {
+	return {
+		axes: [{ column: clonotypeAxisName, spec: clonotypeAxisSpec }],
+		columns: [{
+			column: "confident",
+			spec: {
+				valueType: "Int",
+				name: "pl7.app/structure/confident",
+				annotations: {
+					"pl7.app/label": "Confident structure (" + confidenceMetric + " ≤ " + string(threshold) + " Å)",
+					"pl7.app/isSubset": "true",
+					"pl7.app/table/visibility": "hidden"
+				}
+			}
+		}],
+		storageFormat: "Parquet"
+	}
+}
+
+export ll.toStrict({
+	getConfidenceColumns: getConfidenceColumns,
+	getPdbsMapSpec: getPdbsMapSpec,
+	getPredictionSuccessfulSettings: getPredictionSuccessfulSettings,
+	getConfidentSettings: getConfidentSettings
+})
