@@ -67,6 +67,15 @@ export const predictionModeOptions = [
   { label: "NanoBodyBuilder2 (VHH / VH only)", value: "NanoBodyBuilder2" },
 ] as const;
 
+export const speciesOptions = [
+  { label: "Human", value: "human" },
+  { label: "Mouse", value: "mouse" },
+  { label: "Camelid (VHH/nanobody)", value: "camelid" },
+  { label: "Rat", value: "rat" },
+  { label: "Rabbit", value: "rabbit" },
+  { label: "Other", value: "other" },
+] as const;
+
 const VDJ_FEATURES = ["VDJRegion", "VDJRegionInFrame"];
 
 /**
@@ -109,7 +118,9 @@ function sequenceMatchersForChain(chain: string): AnchoredPColumnSelector[] {
 
 export function defaultBlockLabelFor(args: Partial<BlockData>): string {
   const parts: string[] = [];
-  parts.push(args.mode === "NanoBodyBuilder2" ? "NBB2" : "ABB2");
+  const species = args.species ?? "human";
+  const engine = args.mode === "NanoBodyBuilder2" ? "NBB2" : "ABB2";
+  parts.push(`${species} ${engine}`);
   const metric = args.confidenceMetric === "overallMean" ? "mean" : "CDRH3";
   const threshold = args.confidenceThresholdAngstroms ?? 2.5;
   parts.push(`${metric} ≤ ${threshold.toFixed(1)} Å`);
@@ -125,6 +136,9 @@ export const platforma = BlockModelV3.create(blockDataModel)
     if (data.heavyChainRef === undefined) throw new Error("Heavy chain sequence is required");
     if (data.mode === "ABodyBuilder2" && data.lightChainRef === undefined) {
       throw new Error("Light chain sequence is required in paired (ABodyBuilder2) mode");
+    }
+    if (data.lightChainRef !== undefined && data.heavyChainRef === data.lightChainRef) {
+      throw new Error("Heavy and light chain sequences must be different columns");
     }
     return {
       defaultBlockLabel: data.defaultBlockLabel,
