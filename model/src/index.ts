@@ -34,24 +34,23 @@ function datasetColumnRef(dataset: DatasetSelection | undefined): PlRef | undefi
  */
 const LEAD_SELECTION_TRACE_TYPE = "milaboratories.antibody-tcr-lead-selection";
 
-type TraceEntry = { type: string; label: string };
-
-function readTrace(annotations: Record<string, string> | undefined): TraceEntry[] {
+function hasLeadSelectionTrace(annotations: Record<string, string> | undefined): boolean {
   const raw = annotations?.["pl7.app/trace"];
-  if (!raw) return [];
+  if (!raw) return false;
   try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as TraceEntry[]) : [];
+    const parsed: unknown = JSON.parse(raw);
+    return (
+      Array.isArray(parsed) &&
+      parsed.some(
+        (e) =>
+          typeof e === "object" &&
+          e !== null &&
+          (e as { type?: unknown }).type === LEAD_SELECTION_TRACE_TYPE,
+      )
+    );
   } catch {
-    return [];
+    return false;
   }
-}
-
-function leadSelectionLabel(annotations: Record<string, string> | undefined): string | undefined {
-  const own = annotations?.["pl7.app/label"];
-  if (own && own.length > 0) return own;
-  const trace = readTrace(annotations);
-  return trace.find((e) => e.type === LEAD_SELECTION_TRACE_TYPE)?.label;
 }
 
 export * from "./types";
@@ -160,10 +159,9 @@ export const platforma = BlockModelV3.create(blockDataModel)
   // anchor PColumns; the `filter` predicate narrows discovered filter columns
   // to those originating from antibody-tcr Lead Selection — the canonical
   // workflow for "predict structures of selected leads". Filter labels are
-  // overridden with the lead-selection block subtitle so the dropdown reads
-  // e.g. "In vivo top 100" instead of an internal column id.
-  .output("datasetOptions", (ctx): DatasetOption[] | undefined => {
-    const options = buildDatasetOptions(ctx, {
+  // derived by the SDK via `deriveDistinctLabels`.
+  .output("datasetOptions", (ctx): DatasetOption[] | undefined =>
+    buildDatasetOptions(ctx, {
       primary: (spec: PObjectSpec): boolean => {
         if (!isPColumnSpec(spec)) return false;
         if (spec.annotations?.["pl7.app/isAnchor"] !== "true") return false;
@@ -172,20 +170,9 @@ export const platforma = BlockModelV3.create(blockDataModel)
         const rowAxis = spec.axesSpec[1]?.name;
         return rowAxis === "pl7.app/vdj/clonotypeKey" || rowAxis === "pl7.app/vdj/scClonotypeKey";
       },
-      filter: (spec: PObjectSpec): boolean =>
-        readTrace(spec.annotations).some((e) => e.type === LEAD_SELECTION_TRACE_TYPE),
-    });
-    if (options === undefined) return undefined;
-    return options.map((opt) => {
-      if (!opt.filters || opt.filters.length === 0) return opt;
-      const filters = opt.filters.map((f) => {
-        const spec = ctx.resultPool.getPColumnSpecByRef(f.ref);
-        const label = (spec && leadSelectionLabel(spec.annotations)) ?? f.label;
-        return { ref: f.ref, label };
-      });
-      return { ...opt, filters };
-    });
-  })
+      filter: (spec: PObjectSpec): boolean => hasLeadSelectionTrace(spec.annotations),
+    }),
+  )
 
   /**
    * AA sequence options anchored to the selected dataset. The dropdown labels
