@@ -12,9 +12,9 @@ catalog:
   "@platforma-sdk/workflow-tengo": 5.23.0
   "@platforma-sdk/block-tools": 2.7.25
   "@platforma-sdk/model": 1.76.5
-  "@platforma-sdk/ui-vue": 1.76.5
-  "@platforma-sdk/test": 1.76.5
-  "@platforma-sdk/tengo-builder": 2.5.28
+  "@platforma-sdk/ui-vue": 1.76.7
+  "@platforma-sdk/test": 1.76.6
+  "@platforma-sdk/tengo-builder": 2.5.29
   "@platforma-sdk/package-builder": 3.12.0
   "@platforma-sdk/blocks-deps-updater": 2.2.0
 
