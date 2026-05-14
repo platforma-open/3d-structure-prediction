@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.3d-structure-prediction.ui
 
+## 1.1.2
+
+### Patch Changes
+
+- ffe0150: SDK Update
+- Updated dependencies [ffe0150]
+  - @platforma-open/milaboratories.3d-structure-prediction.model@1.0.2
+
 ## 1.1.1
 
 ### Patch Changes
