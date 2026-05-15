@@ -1,0 +1,43 @@
+// Builds a per-batch logs ResourceMap, keyed by clonotypeKey, where every
+// entry points to the same stdout stream of the batch's ImmuneBuilder run.
+//
+// Inputs:
+//   - manifest:  saveFileContent("manifest.tsv") from the predict-batch exec.
+//                Tab-separated: clonotypeKey \t pdb_filename, header row first.
+//                Only successful predictions appear; failed rows are absent.
+//   - logStream: stdout stream resource (predictRun.getStdoutStream()).
+//
+// Output (`result`): ResourceMap with keyLength=1, one entry per manifest row,
+// every value being the same `logStream` resource. The batch orchestrator
+// merges these per-batch maps into a single ResourceMap keyed by the batch
+// axes; the model side deduplicates by stream identity for the Logs view.
+
+self := import("@platforma-sdk/workflow-tengo:tpl")
+text := import("text")
+pcolumn := import("@platforma-sdk/workflow-tengo:pframes.pcolumn")
+
+self.defineOutputs("result")
+
+self.body(func(inputs) {
+	manifestRaw := string(inputs.manifest.getData())
+	logStream := inputs.logStream
+
+	data := pcolumn.resourceMapBuilder(/* keyLength */ 1)
+
+	lines := text.split(text.trim_space(manifestRaw), "\n")
+	// Skip header; iterate data rows. trim_space on the line + the key field
+	// strips stray CR introduced when csv writes manifest with CRLF endings.
+	if len(lines) > 1 {
+		for i := 1; i < len(lines); i++ {
+			line := text.trim_space(lines[i])
+			if line == "" { continue }
+			fields := text.split(line, "\t")
+			if len(fields) < 1 { continue }
+			clonotypeKey := text.trim_space(fields[0])
+			if clonotypeKey == "" { continue }
+			data.add([clonotypeKey], logStream)
+		}
+	}
+
+	return { result: data.build() }
+})

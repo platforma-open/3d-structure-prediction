@@ -14,6 +14,8 @@ structureColsConv := import(":structure-cols-conv")
 predictBatchTpl := assets.importTemplate(":predict-batch")
 immuneBuilderSw := assets.importSoftware("@platforma-open/milaboratories.3d-structure-prediction.software:immunebuilder-predict")
 
+wf.setPreRun(assets.importTemplate(":prerun"))
+
 wf.prepare(func(args) {
 	// args.dataset is a PrimaryRef { __isPrimaryRef: "v1", column: PlRef, filter?: PlRef }.
 	// `addAnchor` resolves the dataset column (also gives us its spec for the
@@ -150,6 +152,19 @@ wf.body(func(args) {
 				type: "ResourceMap",
 				name: "pdbsMap",
 				spec: structureColsConv.getPdbsMapSpec()
+			},
+			{
+				type: "ResourceMap",
+				name: "log",
+				spec: {
+					kind: "PColumn",
+					name: "pl7.app/structure/prediction/log",
+					valueType: "Log",
+					axesSpec: [],
+					annotations: {
+						"pl7.app/label": "Prediction log"
+					}
+				}
 			}
 		],
 		{
@@ -234,10 +249,19 @@ wf.body(func(args) {
 	pdbsPfb.add("pdb", trace.inject(pdbsOut.spec), pdbsOut.data)
 	pdbsPf := pdbsPfb.build()
 
+	// Per-batch stdout streams from the ImmuneBuilder run, keyed by the
+	// batch-key axes injected by the orchestrator. Surfaced to the UI's
+	// Logs tab via parseResourceMap + getLogHandle in the model.
+	logOut := processResult.output("log")
+	logPfb := pframes.pFrameBuilder()
+	logPfb.add("log", logOut.spec, logOut.data)
+	logPf := logPfb.build()
+
 	return {
 		outputs: {
 			structuresTable: pframes.exportFrame(finalPf),
-			pdbsMap: pframes.exportFrame(pdbsPf)
+			pdbsMap: pframes.exportFrame(pdbsPf),
+			logs: pframes.exportFrame(logPf)
 		},
 		exports: {
 			structures: finalPf,

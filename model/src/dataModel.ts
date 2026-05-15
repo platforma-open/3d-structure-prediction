@@ -17,7 +17,6 @@ export const blockDataModel = new DataModelBuilder()
   .from<BlockData_Ver_v1>("v1")
   .migrate<BlockData>("v2", (prev) => ({ ...prev, species: "human" as const }))
   .init(() => ({
-    defaultBlockLabel: "",
     customBlockLabel: "",
 
     mode: "ABodyBuilder2" as const,

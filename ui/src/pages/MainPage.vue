@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import {
   confidenceMetricOptions,
+  defaultBlockLabelFor,
+  MAX_CLONOTYPES,
   predictionModeOptions,
   speciesOptions,
 } from "@platforma-open/milaboratories.3d-structure-prediction.model";
@@ -19,7 +21,7 @@ import {
   PlBtnGroup,
   PlDatasetSelector,
   PlDropdown,
-  PlMaskIcon24,
+  PlLogView,
   PlNumberField,
   PlSlideModal,
   usePlDataTableSettingsV2,
@@ -32,6 +34,32 @@ const app = useApp();
 const settingsOpen = ref(
   app.model.data.dataset === undefined || app.model.data.heavyChainRef === undefined,
 );
+
+const logsOpen = ref(false);
+// Workflow emits one log entry per clonotype (every clonotype in a batch
+// shares the same stream resource — see predict-batch.tpl.tengo). Dedupe by
+// resolved log-handle identity here so the dropdown lists batches, not
+// clonotypes.
+const batchLogs = computed(() => {
+  const raw = app.model.outputs.batchLogs ?? [];
+  const seen = new Set<string>();
+  const deduped: typeof raw = [];
+  for (const e of raw) {
+    const k = JSON.stringify(e.value);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    deduped.push(e);
+  }
+  return deduped;
+});
+const batchLogOptions = computed(() =>
+  batchLogs.value.map((_, i) => ({ label: `Batch ${i + 1}`, value: i })),
+);
+const selectedBatchLog = ref<number>(0);
+watch(batchLogs, (e) => {
+  if (selectedBatchLog.value >= e.length) selectedBatchLog.value = 0;
+});
+const activeBatchLogHandle = computed(() => batchLogs.value[selectedBatchLog.value]?.value);
 
 function onDatasetChange() {
   app.model.data.heavyChainRef = undefined;
@@ -72,6 +100,14 @@ function setThreshold(value: number | undefined) {
 const tableSettings = usePlDataTableSettingsV2({
   model: () => app.model.outputs.structuresTable,
 });
+
+// Distinct clonotype count from the prerun pre-flight check. Drives both the
+// "too large" warning alert below and (via app.ts mirroring into
+// data.lastClonotypeCount) the Run-button gate in .args().
+const clonotypeCount = computed(() => app.model.outputs.clonotypeCount);
+const clonotypeCountTooHigh = computed(
+  () => clonotypeCount.value !== undefined && clonotypeCount.value > MAX_CLONOTYPES,
+);
 
 // scFv suspicion alert (R7) — heuristic from the result-pool side: dataset has
 // both heavy and light VDJRegion columns on the same bulk clonotype axis.
@@ -257,7 +293,7 @@ function handleViewerVisibility(open: boolean) {
 <template>
   <PlBlockPage
     v-model:subtitle="app.model.data.customBlockLabel"
-    :subtitle-placeholder="app.model.data.defaultBlockLabel"
+    :subtitle-placeholder="defaultBlockLabelFor(app.model.data)"
     title="3D Structure Prediction"
   >
     <template #append>
@@ -269,13 +305,20 @@ function handleViewerVisibility(open: boolean) {
       >
         Export PDBs
       </PlBtnExportArchive>
-      <PlBtnGhost @click.stop="() => (settingsOpen = true)">
-        Settings
-        <template #append>
-          <PlMaskIcon24 name="settings" />
-        </template>
+      <PlBtnGhost v-if="batchLogs.length > 0" icon="file-logs" @click.stop="logsOpen = true">
+        Logs
       </PlBtnGhost>
+      <PlBtnGhost icon="settings" @click.stop="settingsOpen = true">Settings</PlBtnGhost>
     </template>
+
+    <!-- Pre-flight clonotype-count gate. Shown when the prerun has counted
+         more clonotypes than the block is willing to run. The Run button is
+         also disabled in this state (via the throw in `.args()`). -->
+    <PlAlert v-if="clonotypeCountTooHigh" type="error">
+      Selected dataset has {{ clonotypeCount?.toLocaleString() }} clonotypes — over the
+      {{ MAX_CLONOTYPES.toLocaleString() }} limit. Apply a stricter filter to reduce the input
+      before running.
+    </PlAlert>
 
     <!-- scFv suspicion alert (R7) -->
     <PlAlert v-if="scFvAlertVisible" type="warn" closable @close="dismissScFvAlert">
@@ -467,6 +510,24 @@ function handleViewerVisibility(open: boolean) {
     >
       <template #title>3D Structure Viewer</template>
       <PlStructureViewer v-if="viewer" v-bind="viewer" />
+    </PlSlideModal>
+
+    <PlSlideModal v-model="logsOpen" width="80%">
+      <template #title>Prediction logs</template>
+      <PlDropdown
+        :model-value="selectedBatchLog"
+        :options="batchLogOptions"
+        label="Batch"
+        @update:model-value="
+          (v) => {
+            if (typeof v === 'number') selectedBatchLog = v;
+          }
+        "
+      />
+      <PlLogView
+        :log-handle="activeBatchLogHandle"
+        :download-filename="`batch-${selectedBatchLog + 1}.log`"
+      />
     </PlSlideModal>
   </PlBlockPage>
 </template>
