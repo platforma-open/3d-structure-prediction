@@ -17,7 +17,6 @@ export type Species = "human" | "mouse" | "camelid" | "rat" | "rabbit" | "other"
  * inner-joins the optional filter automatically.
  */
 export type BlockArgs = {
-  defaultBlockLabel: string;
   customBlockLabel: string;
 
   dataset: PrimaryRef;
@@ -45,7 +44,6 @@ export type BlockArgs = {
  * downstream output (e.g. PDB provenance) starts to depend on it.
  */
 export type BlockData = {
-  defaultBlockLabel: string;
   customBlockLabel: string;
 
   dataset?: DatasetSelection;
@@ -66,6 +64,14 @@ export type BlockData = {
   graphStateCdrh3V2: GraphMakerState;
   scFvAlertDismissed: boolean;
   failureAlertDismissed: boolean;
+
+  /**
+   * Cached distinct clonotype count from the prerun pre-flight check.
+   * Mirrored from `outputs.clonotypeCount` by `app.ts`; consumed by `.args()`
+   * as the gating signal (`undefined` → still checking, `>` limit → blocked).
+   * Cleared on dataset/filter change to avoid stale-value leaks.
+   */
+  lastClonotypeCount?: number;
 };
 
 /**

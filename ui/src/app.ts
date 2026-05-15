@@ -1,7 +1,4 @@
-import {
-  defaultBlockLabelFor,
-  platforma,
-} from "@platforma-open/milaboratories.3d-structure-prediction.model";
+import { platforma } from "@platforma-open/milaboratories.3d-structure-prediction.model";
 import { defineAppV3 } from "@platforma-sdk/ui-vue";
 import { watch, watchEffect } from "vue";
 import Cdrh3ErrorPage from "./pages/Cdrh3ErrorPage.vue";
@@ -37,17 +34,6 @@ const unwatch = watch(sdkPlugin, ({ loaded }) => {
     }
   });
 
-  // Keep defaultBlockLabel in sync with current data (R56 subtitle).
-  watchEffect(() => {
-    app.model.data.defaultBlockLabel = defaultBlockLabelFor({
-      mode: app.model.data.mode,
-      species: app.model.data.species,
-      confidenceMetric: app.model.data.confidenceMetric,
-      confidenceThresholdAngstroms: app.model.data.confidenceThresholdAngstroms,
-      batchSize: app.model.data.batchSize,
-    });
-  });
-
   // Auto-pick the light chain when the user hasn't chosen one yet:
   // prefer IGK (more common in human/mouse), fall back to IGL, then any
   // option carrying a light-chain marker.
@@ -63,4 +49,29 @@ const unwatch = watch(sdkPlugin, ({ loaded }) => {
       app.model.data.lightChainRef = pick.value;
     }
   });
+
+  // Mirror the prerun's distinct-clonotype count back into data so that
+  // `.args()` can see it (V3 args() only receives data, not ctx). The throw
+  // in `.args()` is what disables the Run button when the count is missing
+  // or above MAX_CLONOTYPES.
+  watchEffect(() => {
+    const c = app.model.outputs.clonotypeCount;
+    if (c !== app.model.data.lastClonotypeCount) {
+      app.model.data.lastClonotypeCount = c;
+    }
+  });
+
+  // Stale-count guard: switching dataset or filter must clear the cached
+  // count so the previous (smaller) value can't briefly keep Run enabled on
+  // a swap to a much larger input. Prerun will re-run and refill it.
+  watch(
+    () => [
+      app.model.data.dataset?.primary?.column,
+      app.model.data.dataset?.primary?.filter,
+      app.model.data.heavyChainRef,
+    ],
+    () => {
+      app.model.data.lastClonotypeCount = undefined;
+    },
+  );
 });

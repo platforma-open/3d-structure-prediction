@@ -56,6 +56,13 @@ function hasLeadSelectionTrace(annotations: Record<string, string> | undefined):
 export * from "./types";
 export { blockDataModel } from "./dataModel";
 
+/**
+ * Maximum number of distinct clonotypes the block is allowed to run on.
+ * Above this, the prerun gate trips and `.args()` throws so the Run button
+ * stays disabled. Exposed so the UI can show the same number in the alert.
+ */
+export const MAX_CLONOTYPES = 10_000;
+
 export const confidenceMetricOptions = [
   { label: "CDR-H3 mean", value: "cdrh3Mean" },
   { label: "Overall mean", value: "overallMean" },
@@ -116,16 +123,12 @@ function sequenceMatchersForChain(chain: string): AnchoredPColumnSelector[] {
 }
 
 export function defaultBlockLabelFor(args: Partial<BlockData>): string {
-  const parts: string[] = [];
   const species = args.species ?? "human";
+  const speciesLabel = speciesOptions.find((o) => o.value === species)?.label ?? "Human";
   const engine = args.mode === "NanoBodyBuilder2" ? "NBB2" : "ABB2";
-  parts.push(`${species} ${engine}`);
   const metric = args.confidenceMetric === "overallMean" ? "mean" : "CDRH3";
   const threshold = args.confidenceThresholdAngstroms ?? 2.5;
-  parts.push(`${metric} ≤ ${threshold.toFixed(1)} Å`);
-  const batch = args.batchSize ?? 50;
-  parts.push(`batches of ${batch}`);
-  return parts.join(", ");
+  return `${speciesLabel} ${engine}, ${metric} ≤ ${threshold.toFixed(1)} Å`;
 }
 
 export const platforma = BlockModelV3.create(blockDataModel)
@@ -139,8 +142,19 @@ export const platforma = BlockModelV3.create(blockDataModel)
     if (data.lightChainRef !== undefined && data.heavyChainRef === data.lightChainRef) {
       throw new Error("Heavy and light chain sequences must be different columns");
     }
+    // Pre-flight gate. Inputs are picked but the prerun pipeline writes a
+    // distinct-clonotype count back into data via app.ts. Until that lands,
+    // and when it exceeds the limit, Run stays disabled.
+    if (data.lastClonotypeCount === undefined) {
+      throw new Error("Checking dataset size…");
+    }
+    if (data.lastClonotypeCount > MAX_CLONOTYPES) {
+      throw new Error(
+        `Dataset has ${data.lastClonotypeCount.toLocaleString()} clonotypes ` +
+          `(max ${MAX_CLONOTYPES.toLocaleString()}). Apply a stricter filter and try again.`,
+      );
+    }
     return {
-      defaultBlockLabel: data.defaultBlockLabel,
       customBlockLabel: data.customBlockLabel,
       // Flatten the DatasetSelection into a PrimaryRef — the workflow's
       // tableBuilder.addPrimary detects the optional filter and inner-joins it.
@@ -153,6 +167,36 @@ export const platforma = BlockModelV3.create(blockDataModel)
       batchSize: data.batchSize,
       torchSeed: data.torchSeed,
     };
+  })
+
+  // Prerun args — staging phase only needs dataset + heavy chain to count
+  // distinct clonotype keys. Returning `undefined` defers the prerun until
+  // both inputs are picked so we don't fire it on every keystroke.
+  .prerunArgs((data) => {
+    if (data.dataset === undefined) return undefined;
+    if (data.heavyChainRef === undefined) return undefined;
+    return {
+      dataset: data.dataset.primary,
+      heavyChainRef: data.heavyChainRef,
+    };
+  })
+
+  // Distinct clonotype count from the prerun pre-flight. The prerun saves a
+  // single-row TSV (`count\n<n>\n`) via `df.saveContent`; we parse the integer
+  // here. Surfaced both to the UI alert and (via `app.ts` mirroring) to
+  // `data.lastClonotypeCount` which `.args()` uses as the Run gate.
+  .output("clonotypeCount", (ctx): number | undefined => {
+    const acc = ctx.prerun?.resolve({
+      field: "clonotypeCount",
+      assertFieldType: "Input",
+      allowPermanentAbsence: true,
+    });
+    const raw = acc?.getDataAsString();
+    if (raw === undefined) return undefined;
+    const lines = raw.trim().split("\n");
+    if (lines.length < 2) return undefined;
+    const n = Number(lines[1].trim());
+    return Number.isFinite(n) ? n : undefined;
   })
 
   // Datasets surfaced in `PlDatasetSelector`. Restricted to clonotype-keyed
@@ -283,6 +327,19 @@ export const platforma = BlockModelV3.create(blockDataModel)
   // simply don't render.
   .output("failureStats", (_ctx): PredictionSummary | undefined => undefined)
 
+  // Per-batch stdout streams from the ImmuneBuilder runs. The workflow emits
+  // one ResourceMap entry per clonotype (every clonotype in a batch sharing
+  // its batch's stream — batch mode requires ResourceMap-typed outputs).
+  // Deduplication by stream identity happens UI-side where the FutureRef
+  // wrappers have already been resolved to comparable handle values.
+  .output("batchLogs", (ctx) => {
+    const pCols = ctx.outputs?.resolve("logs")?.getPColumns();
+    if (pCols === undefined) return undefined;
+    const logCol = pCols.find((c) => c.spec.name === "pl7.app/structure/prediction/log");
+    if (logCol === undefined) return undefined;
+    return parseResourceMap(logCol.data, (acc) => acc.getLogHandle(), false).data;
+  })
+
   // PDB ResourceMap: clonotypeKey → File handle. Built by the
   // build-pdbs-map workdir processor template. Used by the UI for per-row
   // download and for the bulk-zip export. Failed clonotypes have no entry.
@@ -346,7 +403,7 @@ export const platforma = BlockModelV3.create(blockDataModel)
 
   .title(() => "3D Structure Prediction")
 
-  .subtitle((ctx) => ctx.data.customBlockLabel || ctx.data.defaultBlockLabel)
+  .subtitle((ctx) => ctx.data.customBlockLabel || defaultBlockLabelFor(ctx.data))
 
   .sections((_ctx) => [
     { type: "link", href: "/", label: "Structures" },
