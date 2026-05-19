@@ -14,6 +14,8 @@ structureColsConv := import(":structure-cols-conv")
 predictBatchTpl := assets.importTemplate(":predict-batch")
 immuneBuilderSw := assets.importSoftware("@platforma-open/milaboratories.3d-structure-prediction.software:immunebuilder-predict")
 
+wf.setPreRun(assets.importTemplate(":prerun"))
+
 wf.prepare(func(args) {
 	// args.dataset is a PrimaryRef { __isPrimaryRef: "v1", column: PlRef, filter?: PlRef }.
 	// `addAnchor` resolves the dataset column (also gives us its spec for the
@@ -208,7 +210,7 @@ wf.body(func(args) {
 
 	confidentPf := xsv.importFile(
 		subsetRun.getFile("confident.tsv"), "tsv",
-		structureColsConv.getConfidentSettings(clonotypeAxisSpec, clonotypeAxisName, confidenceMetric, threshold),
+		structureColsConv.getConfidentSettings(clonotypeAxisSpec, clonotypeAxisName),
 		{ splitDataAndSpec: true })
 
 	// Final structures pframe: confidence + subset columns. The label column

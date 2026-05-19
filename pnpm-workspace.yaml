@@ -7,20 +7,20 @@ packages:
   - block
 
 catalog:
-  "@milaboratories/ts-builder": 1.4.0
+  "@milaboratories/ts-builder": 1.5.0
   "@milaboratories/ts-configs": 1.2.3
-  "@platforma-sdk/workflow-tengo": 5.23.0
-  "@platforma-sdk/block-tools": 2.7.25
-  "@platforma-sdk/model": 1.76.5
-  "@platforma-sdk/ui-vue": 1.76.7
-  "@platforma-sdk/test": 1.76.6
-  "@platforma-sdk/tengo-builder": 2.5.29
+  "@platforma-sdk/workflow-tengo": 5.25.0
+  "@platforma-sdk/block-tools": 2.8.1
+  "@platforma-sdk/model": 1.77.4
+  "@platforma-sdk/ui-vue": 1.77.4
+  "@platforma-sdk/test": 1.77.5
+  "@platforma-sdk/tengo-builder": 3.0.1
   "@platforma-sdk/package-builder": 3.12.0
   "@platforma-sdk/blocks-deps-updater": 2.2.0
 
   "@platforma-open/milaboratories.runenv-python-3": 1.8.6
 
-  "@milaboratories/graph-maker": 1.4.1
+  "@milaboratories/graph-maker": 1.4.2
   "@milaboratories/helpers": 1.14.2
   "@milaboratories/structure-viewer": 0.2.0
 

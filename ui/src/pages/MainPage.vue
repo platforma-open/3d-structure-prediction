@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import {
   confidenceMetricOptions,
+  defaultBlockLabelFor,
+  MAX_CLONOTYPES,
   predictionModeOptions,
   speciesOptions,
 } from "@platforma-open/milaboratories.3d-structure-prediction.model";
@@ -19,7 +21,6 @@ import {
   PlBtnGroup,
   PlDatasetSelector,
   PlDropdown,
-  PlMaskIcon24,
   PlNumberField,
   PlSlideModal,
   usePlDataTableSettingsV2,
@@ -72,6 +73,14 @@ function setThreshold(value: number | undefined) {
 const tableSettings = usePlDataTableSettingsV2({
   model: () => app.model.outputs.structuresTable,
 });
+
+// Distinct clonotype count from the prerun pre-flight check. Drives both the
+// "too large" warning alert below and (via app.ts mirroring into
+// data.lastClonotypeCount) the Run-button gate in .args().
+const clonotypeCount = computed(() => app.model.outputs.clonotypeCount);
+const clonotypeCountTooHigh = computed(
+  () => clonotypeCount.value !== undefined && clonotypeCount.value > MAX_CLONOTYPES,
+);
 
 // scFv suspicion alert (R7) — heuristic from the result-pool side: dataset has
 // both heavy and light VDJRegion columns on the same bulk clonotype axis.
@@ -257,7 +266,7 @@ function handleViewerVisibility(open: boolean) {
 <template>
   <PlBlockPage
     v-model:subtitle="app.model.data.customBlockLabel"
-    :subtitle-placeholder="app.model.data.defaultBlockLabel"
+    :subtitle-placeholder="defaultBlockLabelFor(app.model.data)"
     title="3D Structure Prediction"
   >
     <template #append>
@@ -269,13 +278,17 @@ function handleViewerVisibility(open: boolean) {
       >
         Export PDBs
       </PlBtnExportArchive>
-      <PlBtnGhost @click.stop="() => (settingsOpen = true)">
-        Settings
-        <template #append>
-          <PlMaskIcon24 name="settings" />
-        </template>
-      </PlBtnGhost>
+      <PlBtnGhost icon="settings" @click.stop="settingsOpen = true">Settings</PlBtnGhost>
     </template>
+
+    <!-- Pre-flight clonotype-count gate. Shown when the prerun has counted
+         more clonotypes than the block is willing to run. The Run button is
+         also disabled in this state (via the throw in `.args()`). -->
+    <PlAlert v-if="clonotypeCountTooHigh" type="error">
+      Selected dataset has {{ clonotypeCount?.toLocaleString() }} clonotypes — over the
+      {{ MAX_CLONOTYPES.toLocaleString() }} limit. Apply a stricter filter to reduce the input
+      before running.
+    </PlAlert>
 
     <!-- scFv suspicion alert (R7) -->
     <PlAlert v-if="scFvAlertVisible" type="warn" closable @close="dismissScFvAlert">
