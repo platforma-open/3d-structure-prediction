@@ -327,19 +327,6 @@ export const platforma = BlockModelV3.create(blockDataModel)
   // simply don't render.
   .output("failureStats", (_ctx): PredictionSummary | undefined => undefined)
 
-  // Per-batch stdout streams from the ImmuneBuilder runs. The workflow emits
-  // one ResourceMap entry per clonotype (every clonotype in a batch sharing
-  // its batch's stream — batch mode requires ResourceMap-typed outputs).
-  // Deduplication by stream identity happens UI-side where the FutureRef
-  // wrappers have already been resolved to comparable handle values.
-  .output("batchLogs", (ctx) => {
-    const pCols = ctx.outputs?.resolve("logs")?.getPColumns();
-    if (pCols === undefined) return undefined;
-    const logCol = pCols.find((c) => c.spec.name === "pl7.app/structure/prediction/log");
-    if (logCol === undefined) return undefined;
-    return parseResourceMap(logCol.data, (acc) => acc.getLogHandle(), false).data;
-  })
-
   // PDB ResourceMap: clonotypeKey → File handle. Built by the
   // build-pdbs-map workdir processor template. Used by the UI for per-row
   // download and for the bulk-zip export. Failed clonotypes have no entry.

@@ -16,18 +16,15 @@ ll := import("@platforma-sdk/workflow-tengo:ll")
 smart := import("@platforma-sdk/workflow-tengo:smart")
 exec := import("@platforma-sdk/workflow-tengo:exec")
 assets := import("@platforma-sdk/workflow-tengo:assets")
-render := import("@platforma-sdk/workflow-tengo:render")
 pConstants := import("@platforma-sdk/workflow-tengo:pframes.constants")
 units := import("@platforma-sdk/workflow-tengo:units")
 
 immuneBuilderSw := assets.importSoftware("@platforma-open/milaboratories.3d-structure-prediction.software:immunebuilder-predict")
 buildPdbsMapTpl := assets.importTemplate(":build-pdbs-map")
-buildLogsMapTpl := assets.importTemplate(":build-logs-map")
 
 self.defineOutputs(
 	"confidence",
-	"pdbsMap",
-	"log"
+	"pdbsMap"
 )
 
 self.body(func(inputs) {
@@ -64,25 +61,13 @@ self.body(func(inputs) {
 		arg("--threshold").arg(string(threshold)).
 		arg("--seed").arg(string(seed)).
 		saveFile("confidence.tsv").
-		saveFileContent("manifest.tsv").
 		processWorkdir("pdbsMap", buildPdbsMapTpl, {}).
 		printErrStreamToStdout().
 		saveStdoutStream().
 		run()
 
-	// Wrap the per-batch stdout stream into a ResourceMap keyed by clonotype,
-	// where every clonotype processed in this batch shares the same stream.
-	// Batch mode requires ResourceMap-typed outputs (Resource is rejected);
-	// the model deduplicates the entries by stream identity so the UI can list
-	// one log per batch rather than one per clonotype.
-	logsResult := render.createEphemeral(buildLogsMapTpl, {
-		manifest: predictRun.getFileContent("manifest.tsv"),
-		logStream: predictRun.getStdoutStream()
-	})
-
 	return {
 		confidence: predictRun.getFile("confidence.tsv"),
-		pdbsMap: predictRun.getProcessorResult("pdbsMap"),
-		log: logsResult.output("result")
+		pdbsMap: predictRun.getProcessorResult("pdbsMap")
 	}
 })

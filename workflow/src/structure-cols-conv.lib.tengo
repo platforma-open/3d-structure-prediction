@@ -165,7 +165,7 @@ getPredictionSuccessfulSettings := func(clonotypeAxisSpec, clonotypeAxisName) {
 				valueType: "Int",
 				name: "pl7.app/structure/predictionSuccessful",
 				annotations: {
-					"pl7.app/label": "Structure predicted",
+					"pl7.app/label": "All structures",
 					"pl7.app/isSubset": "true",
 					"pl7.app/table/visibility": "hidden"
 				}
@@ -177,7 +177,7 @@ getPredictionSuccessfulSettings := func(clonotypeAxisSpec, clonotypeAxisName) {
 
 // xsv.importFile settings for the `confident` subset PColumn — 1 when the
 // user-selected confidence metric is ≤ threshold AND prediction succeeded.
-getConfidentSettings := func(clonotypeAxisSpec, clonotypeAxisName, confidenceMetric, threshold) {
+getConfidentSettings := func(clonotypeAxisSpec, clonotypeAxisName) {
 	return {
 		axes: [{ column: clonotypeAxisName, spec: clonotypeAxisSpec }],
 		columns: [{
@@ -186,7 +186,7 @@ getConfidentSettings := func(clonotypeAxisSpec, clonotypeAxisName, confidenceMet
 				valueType: "Int",
 				name: "pl7.app/structure/confident",
 				annotations: {
-					"pl7.app/label": "Confident structure (" + confidenceMetric + " ≤ " + string(threshold) + " Å)",
+					"pl7.app/label": "Confident structures",
 					"pl7.app/isSubset": "true",
 					"pl7.app/table/visibility": "hidden"
 				}

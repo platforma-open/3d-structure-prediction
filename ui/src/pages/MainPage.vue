@@ -21,7 +21,6 @@ import {
   PlBtnGroup,
   PlDatasetSelector,
   PlDropdown,
-  PlLogView,
   PlNumberField,
   PlSlideModal,
   usePlDataTableSettingsV2,
@@ -34,32 +33,6 @@ const app = useApp();
 const settingsOpen = ref(
   app.model.data.dataset === undefined || app.model.data.heavyChainRef === undefined,
 );
-
-const logsOpen = ref(false);
-// Workflow emits one log entry per clonotype (every clonotype in a batch
-// shares the same stream resource — see predict-batch.tpl.tengo). Dedupe by
-// resolved log-handle identity here so the dropdown lists batches, not
-// clonotypes.
-const batchLogs = computed(() => {
-  const raw = app.model.outputs.batchLogs ?? [];
-  const seen = new Set<string>();
-  const deduped: typeof raw = [];
-  for (const e of raw) {
-    const k = JSON.stringify(e.value);
-    if (seen.has(k)) continue;
-    seen.add(k);
-    deduped.push(e);
-  }
-  return deduped;
-});
-const batchLogOptions = computed(() =>
-  batchLogs.value.map((_, i) => ({ label: `Batch ${i + 1}`, value: i })),
-);
-const selectedBatchLog = ref<number>(0);
-watch(batchLogs, (e) => {
-  if (selectedBatchLog.value >= e.length) selectedBatchLog.value = 0;
-});
-const activeBatchLogHandle = computed(() => batchLogs.value[selectedBatchLog.value]?.value);
 
 function onDatasetChange() {
   app.model.data.heavyChainRef = undefined;
@@ -305,9 +278,6 @@ function handleViewerVisibility(open: boolean) {
       >
         Export PDBs
       </PlBtnExportArchive>
-      <PlBtnGhost v-if="batchLogs.length > 0" icon="file-logs" @click.stop="logsOpen = true">
-        Logs
-      </PlBtnGhost>
       <PlBtnGhost icon="settings" @click.stop="settingsOpen = true">Settings</PlBtnGhost>
     </template>
 
@@ -510,24 +480,6 @@ function handleViewerVisibility(open: boolean) {
     >
       <template #title>3D Structure Viewer</template>
       <PlStructureViewer v-if="viewer" v-bind="viewer" />
-    </PlSlideModal>
-
-    <PlSlideModal v-model="logsOpen" width="80%">
-      <template #title>Prediction logs</template>
-      <PlDropdown
-        :model-value="selectedBatchLog"
-        :options="batchLogOptions"
-        label="Batch"
-        @update:model-value="
-          (v) => {
-            if (typeof v === 'number') selectedBatchLog = v;
-          }
-        "
-      />
-      <PlLogView
-        :log-handle="activeBatchLogHandle"
-        :download-filename="`batch-${selectedBatchLog + 1}.log`"
-      />
     </PlSlideModal>
   </PlBlockPage>
 </template>

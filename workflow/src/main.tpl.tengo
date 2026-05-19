@@ -152,19 +152,6 @@ wf.body(func(args) {
 				type: "ResourceMap",
 				name: "pdbsMap",
 				spec: structureColsConv.getPdbsMapSpec()
-			},
-			{
-				type: "ResourceMap",
-				name: "log",
-				spec: {
-					kind: "PColumn",
-					name: "pl7.app/structure/prediction/log",
-					valueType: "Log",
-					axesSpec: [],
-					annotations: {
-						"pl7.app/label": "Prediction log"
-					}
-				}
 			}
 		],
 		{
@@ -223,7 +210,7 @@ wf.body(func(args) {
 
 	confidentPf := xsv.importFile(
 		subsetRun.getFile("confident.tsv"), "tsv",
-		structureColsConv.getConfidentSettings(clonotypeAxisSpec, clonotypeAxisName, confidenceMetric, threshold),
+		structureColsConv.getConfidentSettings(clonotypeAxisSpec, clonotypeAxisName),
 		{ splitDataAndSpec: true })
 
 	// Final structures pframe: confidence + subset columns. The label column
@@ -249,19 +236,10 @@ wf.body(func(args) {
 	pdbsPfb.add("pdb", trace.inject(pdbsOut.spec), pdbsOut.data)
 	pdbsPf := pdbsPfb.build()
 
-	// Per-batch stdout streams from the ImmuneBuilder run, keyed by the
-	// batch-key axes injected by the orchestrator. Surfaced to the UI's
-	// Logs tab via parseResourceMap + getLogHandle in the model.
-	logOut := processResult.output("log")
-	logPfb := pframes.pFrameBuilder()
-	logPfb.add("log", logOut.spec, logOut.data)
-	logPf := logPfb.build()
-
 	return {
 		outputs: {
 			structuresTable: pframes.exportFrame(finalPf),
-			pdbsMap: pframes.exportFrame(pdbsPf),
-			logs: pframes.exportFrame(logPf)
+			pdbsMap: pframes.exportFrame(pdbsPf)
 		},
 		exports: {
 			structures: finalPf,
