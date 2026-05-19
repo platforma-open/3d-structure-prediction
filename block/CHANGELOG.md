@@ -1,5 +1,15 @@
 # @platforma-open/milaboratories.3d-structure-prediction
 
+## 1.0.10
+
+### Patch Changes
+
+- 49b6d30: Update workflow version
+- Updated dependencies [49b6d30]
+  - @platforma-open/milaboratories.3d-structure-prediction.model@1.0.4
+  - @platforma-open/milaboratories.3d-structure-prediction.ui@1.1.4
+  - @platforma-open/milaboratories.3d-structure-prediction.workflow@1.0.7
+
 ## 1.0.9
 
 ### Patch Changes

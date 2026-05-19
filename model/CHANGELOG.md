@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.3d-structure-prediction.model
 
+## 1.0.4
+
+### Patch Changes
+
+- 49b6d30: Update workflow version
+
 ## 1.0.3
 
 ### Patch Changes
