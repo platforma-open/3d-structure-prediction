@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.3d-structure-prediction.model
 
+## 1.0.3
+
+### Patch Changes
+
+- 0aae4c9: Add a pre-flight clonotype-count check. The prerun counts distinct clonotypes in the selected dataset (after the optional filter) and disables Run with an explanatory alert when the count exceeds 10 000.
+
 ## 1.0.2
 
 ### Patch Changes
