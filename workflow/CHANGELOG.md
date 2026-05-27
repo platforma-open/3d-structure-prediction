@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.3d-structure-prediction.workflow
 
+## 1.0.8
+
+### Patch Changes
+
+- 374ef16: Annotate the `pdbsMap` output column with `pl7.app/isAnchor: "true"` so downstream consumers can surface it as a primary dataset in `PlDatasetSelector` instead of `PlDropdownRef`. No behavior change for existing consumers.
+
 ## 1.0.7
 
 ### Patch Changes
