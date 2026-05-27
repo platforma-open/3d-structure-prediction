@@ -140,6 +140,9 @@ getConfidenceColumns := func(isPaired) {
 
 // PDB ResourceMap spec — produced by the batch orchestrator (merged across
 // batches via merge-resource-maps). Failed clonotypes have no entry.
+// `pl7.app/isAnchor` lets downstream consumers (e.g. 3D Structure-Based
+// Liabilities) surface this column in a `PlDatasetSelector` instead of a
+// plain `PlDropdownRef`, with subset filters auto-attached.
 getPdbsMapSpec := func() {
 	return {
 		kind: "PColumn",
@@ -149,7 +152,8 @@ getPdbsMapSpec := func() {
 		axesSpec: [],
 		annotations: {
 			"pl7.app/label": "Predicted PDB structure",
-			"pl7.app/structure/numbering": "imgt"
+			"pl7.app/structure/numbering": "imgt",
+			"pl7.app/isAnchor": "true"
 		}
 	}
 }
