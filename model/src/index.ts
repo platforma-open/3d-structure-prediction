@@ -156,6 +156,7 @@ export const platforma = BlockModelV3.create(blockDataModel)
     }
     return {
       customBlockLabel: data.customBlockLabel,
+      defaultBlockLabel: defaultBlockLabelFor(data),
       // Flatten the DatasetSelection into a PrimaryRef — the workflow's
       // tableBuilder.addPrimary detects the optional filter and inner-joins it.
       dataset: data.dataset.primary,

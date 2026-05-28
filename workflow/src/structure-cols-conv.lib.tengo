@@ -160,7 +160,7 @@ getPdbsMapSpec := func() {
 
 // xsv.importFile settings for the predictionSuccessful subset PColumn —
 // 1 = prediction succeeded (failureReason was null), 0 = failed.
-getPredictionSuccessfulSettings := func(clonotypeAxisSpec, clonotypeAxisName) {
+getPredictionSuccessfulSettings := func(clonotypeAxisSpec, clonotypeAxisName, blockId) {
 	return {
 		axes: [{ column: clonotypeAxisName, spec: clonotypeAxisSpec }],
 		columns: [{
@@ -168,6 +168,7 @@ getPredictionSuccessfulSettings := func(clonotypeAxisSpec, clonotypeAxisName) {
 			spec: {
 				valueType: "Int",
 				name: "pl7.app/structure/predictionSuccessful",
+				domain: { "pl7.app/structure/prediction/blockId": blockId },
 				annotations: {
 					"pl7.app/label": "All structures",
 					"pl7.app/isSubset": "true",
@@ -181,7 +182,7 @@ getPredictionSuccessfulSettings := func(clonotypeAxisSpec, clonotypeAxisName) {
 
 // xsv.importFile settings for the `confident` subset PColumn — 1 when the
 // user-selected confidence metric is ≤ threshold AND prediction succeeded.
-getConfidentSettings := func(clonotypeAxisSpec, clonotypeAxisName) {
+getConfidentSettings := func(clonotypeAxisSpec, clonotypeAxisName, blockId) {
 	return {
 		axes: [{ column: clonotypeAxisName, spec: clonotypeAxisSpec }],
 		columns: [{
@@ -189,6 +190,7 @@ getConfidentSettings := func(clonotypeAxisSpec, clonotypeAxisName) {
 			spec: {
 				valueType: "Int",
 				name: "pl7.app/structure/confident",
+				domain: { "pl7.app/structure/prediction/blockId": blockId },
 				annotations: {
 					"pl7.app/label": "Confident structures",
 					"pl7.app/isSubset": "true",

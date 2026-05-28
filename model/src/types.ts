@@ -18,6 +18,7 @@ export type Species = "human" | "mouse" | "camelid" | "rat" | "rabbit" | "other"
  */
 export type BlockArgs = {
   customBlockLabel: string;
+  defaultBlockLabel: string;
 
   dataset: PrimaryRef;
   heavyChainRef: SUniversalPColumnId;
