@@ -167,11 +167,30 @@ wf.body(func(args) {
 	)
 
 	// Trace stamp for every confidence + subset column.
+	traceLabel := args.customBlockLabel
+	if is_undefined(traceLabel) || traceLabel == "" {
+		traceLabel = args.defaultBlockLabel
+	}
+	if is_undefined(traceLabel) || traceLabel == "" {
+		traceLabel = "3D Structure Prediction"
+	}
 	trace := pSpec.makeTrace(datasetSpec, {
 		type: "milaboratories.3d-structure-prediction",
 		id: blockId,
 		importance: 20,
-		label: "3D Structure Prediction"
+		label: traceLabel
+	})
+	confidentTrace := pSpec.makeTrace(datasetSpec, {
+		type: "milaboratories.3d-structure-prediction",
+		id: blockId,
+		importance: 20,
+		label: "Confident structures - " + traceLabel
+	})
+	predictionSuccessfulTrace := pSpec.makeTrace(datasetSpec, {
+		type: "milaboratories.3d-structure-prediction",
+		id: blockId,
+		importance: 20,
+		label: "All structures - " + traceLabel
 	})
 
 	// Confidence pframe — one PColumn per Xsv column declared above.
@@ -205,12 +224,12 @@ wf.body(func(args) {
 
 	predictionSuccessfulPf := xsv.importFile(
 		subsetRun.getFile("subsets.tsv"), "tsv",
-		structureColsConv.getPredictionSuccessfulSettings(clonotypeAxisSpec, clonotypeAxisName),
+		structureColsConv.getPredictionSuccessfulSettings(clonotypeAxisSpec, clonotypeAxisName, blockId),
 		{ splitDataAndSpec: true })
 
 	confidentPf := xsv.importFile(
 		subsetRun.getFile("confident.tsv"), "tsv",
-		structureColsConv.getConfidentSettings(clonotypeAxisSpec, clonotypeAxisName),
+		structureColsConv.getConfidentSettings(clonotypeAxisSpec, clonotypeAxisName, blockId),
 		{ splitDataAndSpec: true })
 
 	// Final structures pframe: confidence + subset columns. The label column
@@ -221,10 +240,10 @@ wf.body(func(args) {
 		finalPfb.add(col.id, trace.inject(out.spec), out.data)
 	}
 	for k, v in predictionSuccessfulPf {
-		finalPfb.add("subset/" + k, trace.inject(v.spec), v.data)
+		finalPfb.add("subset/" + k, predictionSuccessfulTrace.inject(v.spec), v.data)
 	}
 	for k, v in confidentPf {
-		finalPfb.add("subset/" + k, trace.inject(v.spec), v.data)
+		finalPfb.add("subset/" + k, confidentTrace.inject(v.spec), v.data)
 	}
 	finalPf := finalPfb.build()
 
