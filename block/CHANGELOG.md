@@ -1,5 +1,18 @@
 # @platforma-open/milaboratories.3d-structure-prediction
 
+## 1.1.0
+
+### Minor Changes
+
+- 35caf17: Make subset columns (`confident`, `predictionSuccessful`) distinguishable per block instance. The spec domain now carries `pl7.app/structure/prediction/blockId`, so two 3D-prediction instances on the same dataset no longer collapse into one entry in downstream dataset selectors. The trace label uses the instance's `customBlockLabel` / `defaultBlockLabel` instead of the hardcoded `"3D Structure Prediction"`, so consumers can tell instances apart.
+
+### Patch Changes
+
+- Updated dependencies [35caf17]
+  - @platforma-open/milaboratories.3d-structure-prediction.workflow@1.1.0
+  - @platforma-open/milaboratories.3d-structure-prediction.model@1.1.0
+  - @platforma-open/milaboratories.3d-structure-prediction.ui@1.1.5
+
 ## 1.0.11
 
 ### Patch Changes
