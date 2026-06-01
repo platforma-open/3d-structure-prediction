@@ -136,6 +136,9 @@ export const platforma = BlockModelV3.create(blockDataModel)
   .args<BlockArgs>((data) => {
     if (data.dataset === undefined) throw new Error("VDJ dataset is required");
     if (data.heavyChainRef === undefined) throw new Error("Heavy chain sequence is required");
+    // UI-only field, but required: force a conscious pick so the user sees the
+    // species-specific accuracy guidance instead of silently defaulting.
+    if (data.species === undefined) throw new Error("Species is required");
     if (data.mode === "ABodyBuilder2" && data.lightChainRef === undefined) {
       throw new Error("Light chain sequence is required in paired (ABodyBuilder2) mode");
     }

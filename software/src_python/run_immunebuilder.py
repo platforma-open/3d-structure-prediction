@@ -22,6 +22,7 @@ import sys as _sys
 import sysconfig as _sysconfig
 
 _runenv_root = _os.environ.get("PYTHONHOME")
+_IMMUNEBUILDER_WEIGHTS_DIR: str | None = None
 if _runenv_root:
     # Pick up packages staged via runenv-python-builder's `copyFiles` directive
     # (e.g. `{site-packages}/anarci`, `{site-packages}/pdbfixer`).
@@ -44,6 +45,15 @@ if _runenv_root:
         _path_env = _os.environ.get("PATH", "")
         if _runenv_bin not in _path_env.split(_os.pathsep):
             _os.environ["PATH"] = _runenv_bin + _os.pathsep + _path_env
+
+    # ImmuneBuilder model weights are baked into the runenv via copyFiles to
+    # avoid the unstable on-first-use Zenodo download. When present, point both
+    # predictors at this directory via the `weights_dir` constructor argument;
+    # when absent (docker image, local dev) fall through to ImmuneBuilder's
+    # default `<pkg>/trained_model/` lookup.
+    _weights_candidate = _os.path.join(_runenv_root, "share", "immunebuilder-weights")
+    if _os.path.isdir(_weights_candidate):
+        _IMMUNEBUILDER_WEIGHTS_DIR = _weights_candidate
 
 import argparse
 import csv
@@ -229,12 +239,15 @@ def _region_errors(per_residue, chain: str, cdr_name: str) -> list[float]:
 
 
 def _load_predictor(mode: str):
+    kwargs = {}
+    if _IMMUNEBUILDER_WEIGHTS_DIR:
+        kwargs["weights_dir"] = _IMMUNEBUILDER_WEIGHTS_DIR
     if mode == "ABodyBuilder2":
         from ImmuneBuilder import ABodyBuilder2
-        return ABodyBuilder2()
+        return ABodyBuilder2(**kwargs)
     if mode == "NanoBodyBuilder2":
         from ImmuneBuilder import NanoBodyBuilder2
-        return NanoBodyBuilder2()
+        return NanoBodyBuilder2(**kwargs)
     raise ValueError(f"unknown mode: {mode}")
 
 
