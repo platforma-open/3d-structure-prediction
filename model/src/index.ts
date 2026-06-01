@@ -123,8 +123,12 @@ function sequenceMatchersForChain(chain: string): AnchoredPColumnSelector[] {
 }
 
 export function defaultBlockLabelFor(args: Partial<BlockData>): string {
-  const species = args.species ?? "human";
-  const speciesLabel = speciesOptions.find((o) => o.value === species)?.label ?? "Human";
+  // `.args()` guarantees species is set before Run, but `.subtitle()` calls
+  // this for unconfigured blocks too — surface "No species" rather than
+  // silently defaulting to "Human" and hiding the unset state.
+  const speciesLabel = args.species
+    ? (speciesOptions.find((o) => o.value === args.species)?.label ?? args.species)
+    : "No species";
   const engine = args.mode === "NanoBodyBuilder2" ? "NBB2" : "ABB2";
   const metric = args.confidenceMetric === "overallMean" ? "mean" : "CDRH3";
   const threshold = args.confidenceThresholdAngstroms ?? 2.5;
