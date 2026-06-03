@@ -5,14 +5,11 @@ xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
 pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 pt := import("@platforma-sdk/workflow-tengo:pt")
 smart := import("@platforma-sdk/workflow-tengo:smart")
-exec := import("@platforma-sdk/workflow-tengo:exec")
-units := import("@platforma-sdk/workflow-tengo:units")
 times := import("times")
 
 structureColsConv := import(":structure-cols-conv")
 
 predictBatchTpl := assets.importTemplate(":predict-batch")
-immuneBuilderSw := assets.importSoftware("@platforma-open/milaboratories.3d-structure-prediction.software:immunebuilder-predict")
 
 wf.setPreRun(assets.importTemplate(":prerun"))
 
@@ -98,36 +95,17 @@ wf.body(func(args) {
 
 	confidenceXsvColumns := structureColsConv.getConfidenceColumns(isPaired)
 
-	// Pre-download model weights once, before the batch fan-out. ImmuneBuilder
-	// fetches weights on first predictor construction into a shared on-disk
-	// cache; without this step, N parallel batch containers race to write the
-	// same files and produce partial/corrupt caches that fail with no retry.
-	// The sentinel file is forwarded as a body input — each batch awaits it
-	// (via addFile in predict-batch.tpl.tengo) before its own exec runs, so
-	// every batch starts against an already-warm cache.
-	warmupRun := exec.builder().
-		software(immuneBuilderSw).
-		cpu(1).mem(2 * units.GiB).
-		env("BLOCK_VERSION", blockId).
-		arg("--warmup").
-		arg("--mode").arg(args.mode).
-		arg("--sentinel").arg("warmup.done").
-		saveFile("warmup.done").
-		printErrStreamToStdout().
-		saveStdoutStream().
-		run()
-	warmupSentinel := warmupRun.getFile("warmup.done")
-
-	// Per-batch scalar settings forwarded to predict-batch as `inputs.<key>`.
 	bodyExtra := {
 		mode: smart.createJsonResource(args.mode),
 		seed: smart.createJsonResource(seed),
-		cpu: smart.createJsonResource(cpu),
-		memGiB: smart.createJsonResource(memGiB),
 		confidenceMetric: smart.createJsonResource(confidenceMetric),
 		threshold: smart.createJsonResource(threshold),
-		blockId: smart.createJsonResource(blockId),
-		warmupSentinel: warmupSentinel
+		blockId: smart.createJsonResource(blockId)
+	}
+
+	bodyMeta := {
+		cpu: smart.createJsonResource(cpu),
+		memGiB: smart.createJsonResource(memGiB)
 	}
 
 	processResult := pframes.processColumn(
@@ -162,6 +140,7 @@ wf.body(func(args) {
 				passContent: false
 			},
 			extra: bodyExtra,
+			metaExtra: bodyMeta,
 			stepCache: 30 * times.minute
 		}
 	)

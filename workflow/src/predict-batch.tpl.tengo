@@ -35,24 +35,34 @@ self.body(func(inputs) {
 
 	mode := inputs.mode
 	seed := inputs.seed
-	cpu := inputs.cpu
-	memGiB := inputs.memGiB
+	cpu := is_undefined(inputs.cpu) ? 4 : inputs.cpu
+	memGiB := is_undefined(inputs.memGiB) ? 4 : inputs.memGiB
 	confidenceMetric := inputs.confidenceMetric
 	threshold := inputs.threshold
 	blockId := inputs.blockId
-	// Sentinel produced by the workflow's pre-warmup step. We don't consume
-	// the file content — adding it as a workdir input is what wires this batch
-	// to await the warmup resource, so every batch only starts after the
-	// shared model cache is populated.
-	warmupSentinel := inputs.warmupSentinel
+
+	// Model weights ship as a published Platforma asset (one per predictor),
+	// mounted into `models/` in the workdir. ImmuneBuilder is pointed at it via
+	// `--weights-dir`, so it never downloads from Zenodo at runtime. `mode` is a
+	// plain build-time value here (processColumn `extra`), so we pick the
+	// matching asset directly.
+	weightsAsset := undefined
+	if mode == "ABodyBuilder2" {
+		weightsAsset = assets.importAsset("@platforma-open/milaboratories.immunebuilder-weights-assets:abodybuilder2")
+	} else if mode == "NanoBodyBuilder2" {
+		weightsAsset = assets.importAsset("@platforma-open/milaboratories.immunebuilder-weights-assets:nanobodybuilder2")
+	} else {
+		ll.panic("predict-batch: unknown mode %v", mode)
+	}
 
 	predictRun := exec.builder().
 		software(immuneBuilderSw).
 		cpu(cpu).mem(memGiB * units.GiB).
 		env("BLOCK_VERSION", blockId).
-		addFile("warmup.done", warmupSentinel).
+		addAsset(weightsAsset, "models").
 		addFile("batch.tsv", batchFile).
 		arg("--mode").arg(mode).
+		arg("--weights-dir").arg("models").
 		arg("--input").arg("batch.tsv").
 		arg("--output-dir").arg("pdbs").
 		arg("--manifest").arg("manifest.tsv").

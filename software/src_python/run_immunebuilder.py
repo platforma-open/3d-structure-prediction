@@ -228,13 +228,18 @@ def _region_errors(per_residue, chain: str, cdr_name: str) -> list[float]:
     ]
 
 
-def _load_predictor(mode: str):
+def _load_predictor(mode: str, weights_dir: str | None = None):
+    # weights_dir points at the asset mounted into the workdir (see
+    # predict-batch.tpl.tengo). ImmuneBuilder loads `<weights_dir>/<model_file>`
+    # and only downloads from Zenodo when the file is missing — which, with the
+    # asset present, never happens. weights_dir=None preserves upstream
+    # download-to-site-packages behaviour for local/manual runs.
     if mode == "ABodyBuilder2":
         from ImmuneBuilder import ABodyBuilder2
-        return ABodyBuilder2()
+        return ABodyBuilder2(weights_dir=weights_dir)
     if mode == "NanoBodyBuilder2":
         from ImmuneBuilder import NanoBodyBuilder2
-        return NanoBodyBuilder2()
+        return NanoBodyBuilder2(weights_dir=weights_dir)
     raise ValueError(f"unknown mode: {mode}")
 
 
@@ -381,6 +386,7 @@ def process_batch(
     seed: int,
     metric: str,
     threshold: float,
+    weights_dir: str | None = None,
 ) -> None:
     pdb_dir.mkdir(parents=True, exist_ok=True)
     manifest_tsv.parent.mkdir(parents=True, exist_ok=True)
@@ -406,7 +412,7 @@ def process_batch(
     _set_seed(seed)
     if rows:
         _log(f"loading {mode} ensemble (4 models)")
-        predictor = _load_predictor(mode)
+        predictor = _load_predictor(mode, weights_dir)
         _log("predictor ready")
     else:
         predictor = None
@@ -575,29 +581,13 @@ def process_batch(
             _log(f"  warning: {n_warn} × {warning}")
 
 
-def warmup(mode: str, sentinel: Path | None) -> None:
-    """Force the ImmuneBuilder weight download into a known cache location.
-
-    Run as a single pre-step before the parallel batch fan-out. Avoids the
-    race where multiple batch containers download the same weight files into
-    a shared cache dir simultaneously, producing partial / corrupt files.
-    """
-    _log(f"warmup mode={mode} loading predictor (this may download weights)")
-    _load_predictor(mode)
-    if sentinel is not None:
-        sentinel.write_text(
-            f"mode={mode}\nimmunebuilder_version={get_immunebuilder_version()}\n"
-        )
-    _log("warmup OK")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["ABodyBuilder2", "NanoBodyBuilder2"], required=True)
-    parser.add_argument("--warmup", action="store_true",
-                        help="Pre-download model weights and exit. --input/--output-dir/--manifest/--confidence are not used.")
-    parser.add_argument("--sentinel", default=None,
-                        help="In --warmup mode, path to a sentinel file written on success.")
+    parser.add_argument("--weights-dir", default=None,
+                        help="Directory holding the ImmuneBuilder model weights "
+                             "(mounted from the weights asset). When omitted, "
+                             "ImmuneBuilder downloads them on first use.")
     parser.add_argument("--input", help="Batch TSV with clonotypeKey, heavyChain[, lightChain]")
     parser.add_argument("--output-dir", help="Directory for per-clonotype PDB files")
     parser.add_argument("--manifest", help="Path to manifest.tsv")
@@ -609,10 +599,6 @@ def main() -> None:
                         help="Confidence threshold (Å) used to derive confidentCount in summary.json")
     args = parser.parse_args()
 
-    if args.warmup:
-        warmup(args.mode, Path(args.sentinel) if args.sentinel else None)
-        return
-
     missing = [
         name for name, value in [
             ("--input", args.input),
@@ -622,7 +608,7 @@ def main() -> None:
         ] if not value
     ]
     if missing:
-        parser.error(f"the following arguments are required when not in --warmup mode: {', '.join(missing)}")
+        parser.error(f"the following arguments are required: {', '.join(missing)}")
 
     process_batch(
         input_tsv=Path(args.input),
@@ -634,6 +620,7 @@ def main() -> None:
         seed=args.seed,
         metric=args.metric,
         threshold=args.threshold,
+        weights_dir=args.weights_dir,
     )
 
 
