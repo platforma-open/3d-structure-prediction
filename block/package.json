@@ -34,7 +34,8 @@
         "airr",
         "downstream",
         "antibody",
-        "structure"
+        "structure",
+        "gpu"
       ],
       "organization": {
         "name": "MiLaboratories Inc",
