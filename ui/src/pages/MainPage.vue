@@ -39,7 +39,11 @@ function onDatasetChange() {
   app.model.data.lightChainRef = undefined;
 }
 
-const effectiveMode = computed(() => app.model.outputs.effectiveMode);
+// The mode the prediction will actually run with — `data.mode`, which is what
+// `.args()` projects into the workflow. It is kept in sync with the light-chain
+// selection (and honors the Advanced override) by the watcher in app.ts, both
+// instant and local, so the warning banners below never flash a stale mode.
+const effectiveMode = computed(() => app.model.data.mode);
 
 // ABB2 was trained predominantly on human and mouse; everything else carries
 // a confidence caveat per spec R44.
