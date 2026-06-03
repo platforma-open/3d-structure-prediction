@@ -13,6 +13,7 @@
     "@platforma-sdk/workflow-tengo": "catalog:"
   },
   "devDependencies": {
+    "@platforma-open/milaboratories.immunebuilder-weights-assets": "catalog:",
     "@platforma-sdk/tengo-builder": "catalog:",
     "@platforma-sdk/test": "catalog:"
   },

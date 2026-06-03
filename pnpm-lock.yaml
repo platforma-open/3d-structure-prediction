@@ -24,6 +24,9 @@ catalogs:
     '@milaboratories/ts-configs':
       specifier: 1.2.3
       version: 1.2.3
+    '@platforma-open/milaboratories.immunebuilder-weights-assets':
+      specifier: ^1.1.0
+      version: 1.1.0
     '@platforma-open/milaboratories.runenv-python-3':
       specifier: 1.8.6
       version: 1.8.6
@@ -203,6 +206,9 @@ importers:
         specifier: '*'
         version: 4.1.5(@types/node@25.6.0)(@vitest/coverage-istanbul@4.1.5)(vite@8.0.10(@types/node@25.6.0)(yaml@2.8.3))
     devDependencies:
+      '@platforma-open/milaboratories.immunebuilder-weights-assets':
+        specifier: 'catalog:'
+        version: 1.1.0
       '@platforma-sdk/tengo-builder':
         specifier: 'catalog:'
         version: 4.0.2
@@ -1409,6 +1415,15 @@ packages:
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
+
+  '@platforma-open/milaboratories.immunebuilder-weights-assets.abodybuilder2@1.1.0':
+    resolution: {integrity: sha512-stp/kpynHT5J7WhuhOTJleCdQ6d8Y/9wvnWqRyrWwEpTXSj1FuSYWqgWz/nKYG5lwEYymq70+aTNNHBqCUniQw==}
+
+  '@platforma-open/milaboratories.immunebuilder-weights-assets.nanobodybuilder2@1.1.0':
+    resolution: {integrity: sha512-1TSrPV1ept3QujGrkzIo98xKDUSFhKX5T9T2X1P1zFPIkB+ehp+dt6p2RkkME+++0oGyur7lxQEFtJFf6IF6Fw==}
+
+  '@platforma-open/milaboratories.immunebuilder-weights-assets@1.1.0':
+    resolution: {integrity: sha512-nWdAqAHPYamvjQgWGemlMwxbgFBIfMKQ0qcxZmHrD7/5h3zIhTA+ADTS3T6q+DB/mq4kpA36FP5cMBFnr9/ASA==}
 
   '@platforma-open/milaboratories.runenv-python-3.12.10-atls@1.2.7':
     resolution: {integrity: sha512-vJiU68NKgyupW5meeWB/pZZ8y5wewPV6/EcRQ2BwUhSyikDQrn83XzBlc/nTu9UmbYmBqQTrt59x0qKtcC0ILw==}
@@ -8655,6 +8670,15 @@ snapshots:
 
   '@pkgjs/parseargs@0.11.0':
     optional: true
+
+  '@platforma-open/milaboratories.immunebuilder-weights-assets.abodybuilder2@1.1.0': {}
+
+  '@platforma-open/milaboratories.immunebuilder-weights-assets.nanobodybuilder2@1.1.0': {}
+
+  '@platforma-open/milaboratories.immunebuilder-weights-assets@1.1.0':
+    dependencies:
+      '@platforma-open/milaboratories.immunebuilder-weights-assets.abodybuilder2': 1.1.0
+      '@platforma-open/milaboratories.immunebuilder-weights-assets.nanobodybuilder2': 1.1.0
 
   '@platforma-open/milaboratories.runenv-python-3.12.10-atls@1.2.7': {}
 
