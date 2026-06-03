@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { PredictionMode } from "@platforma-open/milaboratories.3d-structure-prediction.model";
 import {
   confidenceMetricOptions,
   defaultBlockLabelFor,
@@ -39,7 +40,9 @@ function onDatasetChange() {
   app.model.data.lightChainRef = undefined;
 }
 
-const effectiveMode = computed(() => app.model.outputs.effectiveMode);
+const effectiveMode = computed<PredictionMode>(() =>
+  app.model.data.lightChainRef !== undefined ? "ABodyBuilder2" : "NanoBodyBuilder2",
+);
 
 // ABB2 was trained predominantly on human and mouse; everything else carries
 // a confidence caveat per spec R44.
