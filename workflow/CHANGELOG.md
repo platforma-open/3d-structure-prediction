@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.3d-structure-prediction.workflow
 
+## 1.1.1
+
+### Patch Changes
+
+- 0979056: Species selector now starts unset and is genuinely required — removed the implicit "human" default and added an `.args()` gate so Run stays disabled until the user picks a species. Existing pre-species projects keep migrating to "human" so their Run stays unlocked. Accuracy-guidance banners no longer render with an empty species.
+
 ## 1.1.0
 
 ### Minor Changes
