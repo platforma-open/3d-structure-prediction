@@ -123,8 +123,12 @@ function sequenceMatchersForChain(chain: string): AnchoredPColumnSelector[] {
 }
 
 export function defaultBlockLabelFor(args: Partial<BlockData>): string {
-  const species = args.species ?? "human";
-  const speciesLabel = speciesOptions.find((o) => o.value === species)?.label ?? "Human";
+  // `.args()` guarantees species is set before Run, but `.subtitle()` calls
+  // this for unconfigured blocks too — surface "No species" rather than
+  // silently defaulting to "Human" and hiding the unset state.
+  const speciesLabel = args.species
+    ? (speciesOptions.find((o) => o.value === args.species)?.label ?? args.species)
+    : "No species";
   const engine = args.mode === "NanoBodyBuilder2" ? "NBB2" : "ABB2";
   const metric = args.confidenceMetric === "overallMean" ? "mean" : "CDRH3";
   const threshold = args.confidenceThresholdAngstroms ?? 2.5;
@@ -136,6 +140,9 @@ export const platforma = BlockModelV3.create(blockDataModel)
   .args<BlockArgs>((data) => {
     if (data.dataset === undefined) throw new Error("VDJ dataset is required");
     if (data.heavyChainRef === undefined) throw new Error("Heavy chain sequence is required");
+    // UI-only field, but required: force a conscious pick so the user sees the
+    // species-specific accuracy guidance instead of silently defaulting.
+    if (data.species === undefined) throw new Error("Species is required");
     if (data.mode === "ABodyBuilder2" && data.lightChainRef === undefined) {
       throw new Error("Light chain sequence is required in paired (ABodyBuilder2) mode");
     }

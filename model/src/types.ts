@@ -43,6 +43,11 @@ export type BlockArgs = {
  * not consume it yet, and threading it through would invalidate cached
  * predictions on every species switch. Wire it into `BlockArgs` when/if
  * downstream output (e.g. PDB provenance) starts to depend on it.
+ *
+ * Fresh blocks start with no default but it is required to run: `.args()`
+ * throws while `species` is undefined, so the user must consciously pick one
+ * and see the relevant accuracy guidance before Run unlocks. (Pre-species v1
+ * projects migrate to "human" to keep their Run unlocked.)
  */
 export type BlockData = {
   customBlockLabel: string;
@@ -52,7 +57,7 @@ export type BlockData = {
   lightChainRef?: SUniversalPColumnId;
 
   mode: PredictionMode;
-  species: Species;
+  species?: Species;
 
   confidenceMetric: ConfidenceMetric;
   confidenceThresholdAngstroms: number;

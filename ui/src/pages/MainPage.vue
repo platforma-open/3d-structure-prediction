@@ -44,7 +44,10 @@ const effectiveMode = computed(() => app.model.outputs.effectiveMode);
 // ABB2 was trained predominantly on human and mouse; everything else carries
 // a confidence caveat per spec R44.
 const nonStandardAbb2Species = computed(
-  () => app.model.data.species !== "human" && app.model.data.species !== "mouse",
+  () =>
+    app.model.data.species !== undefined &&
+    app.model.data.species !== "human" &&
+    app.model.data.species !== "mouse",
 );
 
 // Species/mode guidance is only meaningful once the user has at least picked
@@ -389,7 +392,14 @@ function handleViewerVisibility(open: boolean) {
         Light chain not set — predicting with NanoBodyBuilder2 trained on camelid VHHs.
       </PlAlert>
 
-      <PlAlert v-else-if="chainGuidanceVisible && effectiveMode === 'NanoBodyBuilder2'" type="warn">
+      <PlAlert
+        v-else-if="
+          chainGuidanceVisible &&
+          effectiveMode === 'NanoBodyBuilder2' &&
+          app.model.data.species !== undefined
+        "
+        type="warn"
+      >
         Predicting a conventional <b>{{ app.model.data.species }}</b> heavy chain alone with
         NanoBodyBuilder2. A structure is still produced, but framework geometry, especially the
         VL-facing side of FR2, is biased by the VHH training distribution. Pair the heavy chain with
