@@ -35,8 +35,8 @@ self.body(func(inputs) {
 
 	mode := inputs.mode
 	seed := inputs.seed
-	cpu := inputs.cpu
-	memGiB := inputs.memGiB
+	cpu := is_undefined(inputs.cpu) ? 4 : inputs.cpu
+	memGiB := is_undefined(inputs.memGiB) ? 4 : inputs.memGiB
 	confidenceMetric := inputs.confidenceMetric
 	threshold := inputs.threshold
 	blockId := inputs.blockId
