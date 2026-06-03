@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { PredictionMode } from "@platforma-open/milaboratories.3d-structure-prediction.model";
 import {
   confidenceMetricOptions,
   defaultBlockLabelFor,
@@ -40,9 +39,11 @@ function onDatasetChange() {
   app.model.data.lightChainRef = undefined;
 }
 
-const effectiveMode = computed<PredictionMode>(() =>
-  app.model.data.lightChainRef !== undefined ? "ABodyBuilder2" : "NanoBodyBuilder2",
-);
+// The mode the prediction will actually run with — `data.mode`, which is what
+// `.args()` projects into the workflow. It is kept in sync with the light-chain
+// selection (and honors the Advanced override) by the watcher in app.ts, both
+// instant and local, so the warning banners below never flash a stale mode.
+const effectiveMode = computed(() => app.model.data.mode);
 
 // ABB2 was trained predominantly on human and mouse; everything else carries
 // a confidence caveat per spec R44.

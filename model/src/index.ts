@@ -20,7 +20,7 @@ import {
   parseResourceMap,
 } from "@platforma-sdk/model";
 import { blockDataModel } from "./dataModel";
-import type { BlockArgs, BlockData, PredictionMode, PredictionSummary } from "./types";
+import type { BlockArgs, BlockData, PredictionSummary } from "./types";
 
 /** Extract the user-picked primary column PlRef from a `DatasetSelection`. */
 function datasetColumnRef(dataset: DatasetSelection | undefined): PlRef | undefined {
@@ -249,12 +249,6 @@ export const platforma = BlockModelV3.create(blockDataModel)
       },
     );
   })
-
-  .output(
-    "effectiveMode",
-    (ctx): PredictionMode =>
-      ctx.data.lightChainRef !== undefined ? "ABodyBuilder2" : "NanoBodyBuilder2",
-  )
 
   .output("datasetSpec", (ctx) => {
     const ref = datasetColumnRef(ctx.data.dataset);

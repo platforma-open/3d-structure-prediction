@@ -24,15 +24,19 @@ const unwatch = watch(sdkPlugin, ({ loaded }) => {
   unwatch();
   const app = useApp();
 
-  // Sync data.mode with the effective mode derived from lightChainRef.
-  // Users can override via the advanced settings; this only flips it when
-  // the derived value diverges from what's stored.
-  watchEffect(() => {
-    const derived = app.model.outputs.effectiveMode;
-    if (derived && app.model.data.mode !== derived) {
-      app.model.data.mode = derived;
-    }
-  });
+  // Auto-select the prediction mode from the light-chain selection: paired
+  // VH+VL → ABodyBuilder2, lone heavy chain → NanoBodyBuilder2. Keyed on the
+  // instant local `lightChainRef` (not the lagging server-derived output) so
+  // the species/mode warning banners react in lockstep with the dropdowns —
+  // reading the output here let the banners flash a stale mode for a few
+  // seconds. `mode` is not a dependency, so a manual override in Advanced
+  // settings sticks until the user next changes the light chain selection.
+  watch(
+    () => app.model.data.lightChainRef,
+    (lightChainRef) => {
+      app.model.data.mode = lightChainRef !== undefined ? "ABodyBuilder2" : "NanoBodyBuilder2";
+    },
+  );
 
   // Auto-pick the light chain when the user hasn't chosen one yet:
   // prefer IGK (more common in human/mouse), fall back to IGL, then any

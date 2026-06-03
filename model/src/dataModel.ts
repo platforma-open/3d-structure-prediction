@@ -21,7 +21,7 @@ export const blockDataModel = new DataModelBuilder()
   .init(() => ({
     customBlockLabel: "",
 
-    mode: "ABodyBuilder2" as const,
+    mode: "NanoBodyBuilder2" as const,
     confidenceMetric: "cdrh3Mean" as const,
     confidenceThresholdAngstroms: 2.5,
     batchSize: 50,
