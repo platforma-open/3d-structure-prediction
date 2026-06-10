@@ -147,6 +147,12 @@ def _warning_label(code: str) -> str:
 # per-run via RowResult.failure_reason_text.
 CONFIDENCE_ABOVE_THRESHOLD_REASON = "confidence_above_threshold"
 
+# Failure-reason code for a successful prediction whose selected confidence
+# metric could not be computed (so no threshold comparison was possible). Kept
+# distinct from CONFIDENCE_ABOVE_THRESHOLD_REASON so the table doesn't imply a
+# numeric comparison that never happened.
+CONFIDENCE_METRIC_UNAVAILABLE_REASON = "confidence_metric_unavailable"
+
 MANIFEST_FIELDS = [KEY_COLUMN_PLACEHOLDER, "pdb_filename"]
 
 
@@ -556,16 +562,29 @@ def process_batch(
     manifest_fields = [key_col if f == KEY_COLUMN_PLACEHOLDER else f for f in MANIFEST_FIELDS]
     confidence_fields = build_confidence_fields(key_col)
 
-    # Mark successful-but-low-confidence predictions: a structure was produced,
-    # but its selected error metric exceeds the threshold. We surface this as a
-    # failure reason (carrying the threshold value) so the user sees why these
-    # clonotypes have no downloadable structure — their confidence values still
-    # appear in the table. This is the single confident filter for the block.
+    # Build the summary BEFORE the confident-marking loop below, so its
+    # semantics stay stable: `succeeded` = a structure was produced (regardless
+    # of confidence) and `confidentCount` = the within-threshold subset. The
+    # loop then tags above-threshold / metric-unavailable rows with a failure
+    # reason for the per-row table; that must not retroactively inflate the
+    # summary's failure count or collapse `succeeded` onto `confidentCount`.
+    summary = _build_summary(results, metric, threshold)
+
+    # A structure was produced, but it isn't confident enough to export. Two
+    # distinct cases, surfaced as distinct failure reasons so the user (and any
+    # downstream tooling) can tell them apart — the confidence values still
+    # appear in the table either way. This is the single confident filter for
+    # the block.
     for r in results:
         if r.failure_reason or not r.pdb_filename:
             continue
         v = _metric_value(r, metric)
-        if v is None or v > threshold:
+        if v is None:
+            # The selected metric couldn't be computed (e.g. the CDR-H3 region
+            # produced no numbered residues) — no comparison was made.
+            r.failure_reason = CONFIDENCE_METRIC_UNAVAILABLE_REASON
+            r.failure_reason_text = "Confidence metric unavailable"
+        elif v > threshold:
             r.failure_reason = CONFIDENCE_ABOVE_THRESHOLD_REASON
             r.failure_reason_text = f"Prediction confidence above threshold ({threshold} Å)"
 
@@ -588,7 +607,6 @@ def process_batch(
         for r in results:
             writer.writerow(r.to_tsv_row(key_col))
 
-    summary = _build_summary(results, metric, threshold)
     if summary_json is not None:
         summary_json.parent.mkdir(parents=True, exist_ok=True)
         with open(summary_json, "w") as f:

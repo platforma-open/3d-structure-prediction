@@ -168,14 +168,6 @@ wf.body(func(args) {
 		label: traceLabel
 	})
 
-	// Confidence pframe — one PColumn per Xsv column declared above.
-	confidencePfb := pframes.pFrameBuilder()
-	for col in confidenceXsvColumns {
-		out := processResult.output("confidence", col.id)
-		confidencePfb.add(col.id, trace.inject(out.spec), out.data)
-	}
-	confidencePfHandle := confidencePfb.build()
-
 	// Structures pframe: confidence columns only (full keyspace — every
 	// clonotype, confident or not). The label column (clonotypeLabel) is part
 	// of confidence. No subset filter columns: confident filtering happens on
