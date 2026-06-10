@@ -2,10 +2,12 @@
 // keyed by clonotypeKey from the post-prediction workdir.
 //
 // Reads `manifest.tsv` (written by run_immunebuilder.py — header
-// `clonotypeKey\tpdb_filename`, one row per successful prediction),
+// `clonotypeKey\tpdb_filename`, one row per confident prediction),
 // then saves each referenced PDB file from `pdbs/` and adds it to the
-// ResourceMap under its clonotypeKey. Only successful rows appear; failed
-// rows have no manifest entry and therefore no ResourceMap entry.
+// ResourceMap under its clonotypeKey. Only confident rows appear (the wrapper
+// gates the manifest on success AND error metric ≤ threshold); failed and
+// unconfident clonotypes have no manifest entry and therefore no ResourceMap
+// entry.
 
 self := import("@platforma-sdk/workflow-tengo:workdir.proc")
 

@@ -4,9 +4,12 @@ Reads a batch TSV of clonotypes and predicts structures via ABodyBuilder2 or
 NanoBodyBuilder2 (spec R22). Emits:
 
 - Per-clonotype PDB files named `<sha1(clonotypeKey)>.pdb` (R30).
-- `manifest.tsv`  : (clonotypeKey, pdb_filename).
+- `manifest.tsv`  : (clonotypeKey, pdb_filename) — confident clonotypes only
+                    (success AND selected metric ≤ threshold); drives the
+                    exported/UI PDB ResourceMap.
 - `confidence.tsv`: aggregate + per-residue confidence (Å error, R32-R36)
-                    plus failureReason (R40) and warning columns.
+                    plus failureReason (R40) and warning columns — every row,
+                    confident or not.
 
 Dependencies (ImmuneBuilder, torch) ride the venv that pl-pkg's install-deps
 creates. ANARCI and pdbfixer are not on PyPI; the atls runenv builds them
@@ -138,6 +141,12 @@ def _failure_reason_label(code: str) -> str:
 def _warning_label(code: str) -> str:
     return WARNING_LABELS.get(code, code)
 
+# Failure-reason code for a successful prediction whose selected error metric
+# is above the confidence threshold (so it's excluded from the PDB map). The
+# code is stable for grouping; the human text (with the threshold value) is set
+# per-run via RowResult.failure_reason_text.
+CONFIDENCE_ABOVE_THRESHOLD_REASON = "confidence_above_threshold"
+
 MANIFEST_FIELDS = [KEY_COLUMN_PLACEHOLDER, "pdb_filename"]
 
 
@@ -183,6 +192,10 @@ class RowResult:
     per_residue_json: str = ""
     cdrh3_len: str = ""
     failure_reason: str = ""
+    # Optional human text override; when set, used verbatim instead of the
+    # static FAILURE_REASON_LABELS lookup (lets us embed runtime values such as
+    # the confidence threshold).
+    failure_reason_text: str = ""
     warnings: list[str] = field(default_factory=list)
     pdb_filename: str = ""
 
@@ -208,7 +221,7 @@ class RowResult:
             "perResidueError": self.per_residue_json,
             "cdrh3Length": self.cdrh3_len,
             "failureReason": self.failure_reason,
-            "failureReasonText": _failure_reason_label(self.failure_reason),
+            "failureReasonText": self.failure_reason_text or _failure_reason_label(self.failure_reason),
             "warning": self.warning_str,
             "warningText": self.warning_text,
         }
@@ -543,13 +556,30 @@ def process_batch(
     manifest_fields = [key_col if f == KEY_COLUMN_PLACEHOLDER else f for f in MANIFEST_FIELDS]
     confidence_fields = build_confidence_fields(key_col)
 
+    # Mark successful-but-low-confidence predictions: a structure was produced,
+    # but its selected error metric exceeds the threshold. We surface this as a
+    # failure reason (carrying the threshold value) so the user sees why these
+    # clonotypes have no downloadable structure — their confidence values still
+    # appear in the table. This is the single confident filter for the block.
+    for r in results:
+        if r.failure_reason or not r.pdb_filename:
+            continue
+        v = _metric_value(r, metric)
+        if v is None or v > threshold:
+            r.failure_reason = CONFIDENCE_ABOVE_THRESHOLD_REASON
+            r.failure_reason_text = f"Prediction confidence above threshold ({threshold} Å)"
+
+    # The manifest selects which PDBs become the exported/UI ResourceMap: only
+    # clonotypes that have a structure and no failure reason. Failed and the
+    # low-confidence rows just marked are excluded, so the map is confident-only
+    # by construction.
     with open(manifest_tsv, "w", newline="") as f:
         writer = csv.DictWriter(
             f, fieldnames=manifest_fields, delimiter="\t", lineterminator="\n"
         )
         writer.writeheader()
         for r in results:
-            if r.pdb_filename:
+            if r.pdb_filename and not r.failure_reason:
                 writer.writerow({key_col: r.clonotype_key, "pdb_filename": r.pdb_filename})
 
     with open(confidence_tsv, "w", newline="") as f:
