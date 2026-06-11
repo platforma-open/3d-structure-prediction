@@ -1,9 +1,7 @@
 wf := import("@platforma-sdk/workflow-tengo:workflow")
 assets := import("@platforma-sdk/workflow-tengo:assets")
 pframes := import("@platforma-sdk/workflow-tengo:pframes")
-xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
 pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
-pt := import("@platforma-sdk/workflow-tengo:pt")
 smart := import("@platforma-sdk/workflow-tengo:smart")
 times := import("times")
 
@@ -68,9 +66,19 @@ wf.body(func(args) {
 	// Heavy chain is the keyspace primary. When the dataset PrimaryRef carries
 	// a filter, wrap heavy as a ResolvedPrimaryRef so the batch orchestrator
 	// inner-joins the filter on each batch's clonotype keys.
+	//
+	// The filter (e.g. a Lead Selection subset) also carries richer provenance
+	// than the bare dataset column: its trace is dataset → lead-selection,
+	// whereas the dataset column traces only to the dataset. So when a filter is
+	// present we root the output trace in the filter spec — this is the only
+	// thing that distinguishes two predictions off the same dataset with
+	// different filters (the filter is applied as a filter, never baked into the
+	// dataset column's own trace).
 	primarySrc := { spec: heavy.spec, data: heavy.data }
+	traceSourceSpec := datasetSpec
 	if !is_undefined(args.dataset.filter) {
 		filterCol := columns.getColumn(args.dataset.filter)
+		traceSourceSpec = filterCol.spec
 		primarySrc = {
 			__isPrimaryRef: "v1",
 			column: { spec: heavy.spec, data: heavy.data },
@@ -93,7 +101,7 @@ wf.body(func(args) {
 		})
 	}
 
-	confidenceXsvColumns := structureColsConv.getConfidenceColumns(isPaired)
+	confidenceXsvColumns := structureColsConv.getConfidenceColumns(isPaired, confidenceMetric, threshold)
 
 	bodyExtra := {
 		mode: smart.createJsonResource(args.mode),
@@ -141,11 +149,11 @@ wf.body(func(args) {
 			},
 			extra: bodyExtra,
 			metaExtra: bodyMeta,
-			stepCache: 30 * times.minute
+			stepCache: 60 * times.minute
 		}
 	)
 
-	// Trace stamp for every confidence + subset column.
+	// Trace stamp for every confidence column and the PDB map.
 	traceLabel := args.customBlockLabel
 	if is_undefined(traceLabel) || traceLabel == "" {
 		traceLabel = args.defaultBlockLabel
@@ -153,82 +161,31 @@ wf.body(func(args) {
 	if is_undefined(traceLabel) || traceLabel == "" {
 		traceLabel = "3D Structure Prediction"
 	}
-	trace := pSpec.makeTrace(datasetSpec, {
+	trace := pSpec.makeTrace(traceSourceSpec, {
 		type: "milaboratories.3d-structure-prediction",
 		id: blockId,
 		importance: 20,
 		label: traceLabel
 	})
-	confidentTrace := pSpec.makeTrace(datasetSpec, {
-		type: "milaboratories.3d-structure-prediction",
-		id: blockId,
-		importance: 20,
-		label: "Confident structures - " + traceLabel
-	})
-	predictionSuccessfulTrace := pSpec.makeTrace(datasetSpec, {
-		type: "milaboratories.3d-structure-prediction",
-		id: blockId,
-		importance: 20,
-		label: "All structures - " + traceLabel
-	})
 
-	// Confidence pframe — one PColumn per Xsv column declared above.
-	confidencePfb := pframes.pFrameBuilder()
-	for col in confidenceXsvColumns {
-		out := processResult.output("confidence", col.id)
-		confidencePfb.add(col.id, trace.inject(out.spec), out.data)
-	}
-	confidencePfHandle := confidencePfb.build()
-
-	// Subset columns (predictionSuccessful + confident) computed via pt over
-	// the assembled confidence pframe. pt addresses columns by xsv id, not by
-	// spec.name.
-	metricColumn := "cdrh3Error"
-	if confidenceMetric == "overallMean" {
-		metricColumn = "meanError"
-	}
-
-	subsetWf := pt.workflow().mem("2GiB").cpu(1)
-	df := subsetWf.frame(pt.p.full(confidencePfHandle))
-
-	successExpr := pt.col("failureReason").isNull().cast("Int").alias("predictionSuccessful")
-	successDf := df.select(pt.axis(clonotypeAxisName), successExpr)
-	successDf.save("subsets.tsv")
-
-	confidentExpr := pt.col("failureReason").isNull().and(pt.col(metricColumn).le(threshold)).fillNull(false).cast("Int").alias("confident")
-	confidentDf := df.select(pt.axis(clonotypeAxisName), confidentExpr)
-	confidentDf.save("confident.tsv")
-
-	subsetRun := subsetWf.run()
-
-	predictionSuccessfulPf := xsv.importFile(
-		subsetRun.getFile("subsets.tsv"), "tsv",
-		structureColsConv.getPredictionSuccessfulSettings(clonotypeAxisSpec, clonotypeAxisName, blockId),
-		{ splitDataAndSpec: true })
-
-	confidentPf := xsv.importFile(
-		subsetRun.getFile("confident.tsv"), "tsv",
-		structureColsConv.getConfidentSettings(clonotypeAxisSpec, clonotypeAxisName, blockId),
-		{ splitDataAndSpec: true })
-
-	// Final structures pframe: confidence + subset columns. The label column
-	// (clonotypeLabel) is part of confidence.
+	// Structures pframe: confidence columns only (full keyspace — every
+	// clonotype, confident or not). The label column (clonotypeLabel) is part
+	// of confidence. No subset filter columns: confident filtering happens on
+	// the PDB map below, so downstream has no all-vs-confident selection to
+	// make.
 	finalPfb := pframes.pFrameBuilder()
 	for col in confidenceXsvColumns {
 		out := processResult.output("confidence", col.id)
 		finalPfb.add(col.id, trace.inject(out.spec), out.data)
 	}
-	for k, v in predictionSuccessfulPf {
-		finalPfb.add("subset/" + k, predictionSuccessfulTrace.inject(v.spec), v.data)
-	}
-	for k, v in confidentPf {
-		finalPfb.add("subset/" + k, confidentTrace.inject(v.spec), v.data)
-	}
 	finalPf := finalPfb.build()
 
-	// PDB ResourceMap pframe — produced directly by the batch orchestrator
-	// (merged across batches via merge-resource-maps). Failed clonotypes have
-	// no entry.
+	// PDB ResourceMap — produced by the batch orchestrator (merged across
+	// batches). The Python wrapper writes only confident clonotypes (prediction
+	// succeeded AND selected error metric ≤ threshold) into manifest.tsv, so
+	// this map is confident-only by construction. Failed and unconfident
+	// clonotypes have no entry. Used by both the UI (per-row download + zip)
+	// and downstream blocks.
 	pdbsOut := processResult.output("pdbsMap")
 	pdbsPfb := pframes.pFrameBuilder()
 	pdbsPfb.add("pdb", trace.inject(pdbsOut.spec), pdbsOut.data)
