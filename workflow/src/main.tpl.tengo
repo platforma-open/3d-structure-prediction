@@ -101,7 +101,7 @@ wf.body(func(args) {
 		})
 	}
 
-	confidenceXsvColumns := structureColsConv.getConfidenceColumns(isPaired)
+	confidenceXsvColumns := structureColsConv.getConfidenceColumns(isPaired, confidenceMetric, threshold)
 
 	bodyExtra := {
 		mode: smart.createJsonResource(args.mode),

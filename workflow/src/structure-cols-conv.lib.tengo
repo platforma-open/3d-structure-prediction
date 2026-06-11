@@ -1,4 +1,5 @@
 ll := import("@platforma-sdk/workflow-tengo:ll")
+json := import("json")
 
 confidenceColumn := func(columnId, pName, label, extraAnnotations) {
 	annotations := {
@@ -31,7 +32,26 @@ confidenceColumn := func(columnId, pName, label, extraAnnotations) {
 //   - the code columns retain the raw enum value, hidden by default; they
 //     stay in the schema so downstream blocks / future failure-stats logic
 //     can group on a stable identifier.
-getConfidenceColumns := func(isPaired) {
+getConfidenceColumns := func(isPaired, confidenceMetric, threshold) {
+	// Confidence threshold annotation: graph-maker draws a dashed, labelled
+	// vertical line on a histogram for each entry in the value column's
+	// `pl7.app/graph/thresholds` annotation. The threshold gates the
+	// user-selected metric, so attach it to that metric's column — the line
+	// then lands on the matching distribution page (CDR-H3 for cdrh3Mean,
+	// Mean for overallMean).
+	thresholdsJson := string(json.encode([{ value: threshold }]))
+	meanExtra := { "pl7.app/isScore": "true", "pl7.app/table/orderPriority": "90000" }
+	if confidenceMetric == "overallMean" {
+		meanExtra["pl7.app/graph/thresholds"] = thresholdsJson
+	}
+	cdrh3Extra := {
+		"pl7.app/isScore": "true",
+		"pl7.app/table/orderPriority": "89000",
+		"pl7.app/description": "ABodyBuilder2 accuracy degrades for CDRH3 ≥ ~20 aa (Abanades et al., 2023, Fig. 4); long-CDRH3 predictions should be treated as lower-confidence regardless of the error value."
+	}
+	if confidenceMetric == "cdrh3Mean" {
+		cdrh3Extra["pl7.app/graph/thresholds"] = thresholdsJson
+	}
 	cols := [
 		{
 			column: "clonotypeLabel",
@@ -46,15 +66,11 @@ getConfidenceColumns := func(isPaired) {
 			}
 		},
 		confidenceColumn("meanError", "pl7.app/structure/confidence/mean",
-			"Mean error (Å)", { "pl7.app/isScore": "true", "pl7.app/table/orderPriority": "90000" }),
+			"Mean error (Å)", meanExtra),
 		confidenceColumn("cdrh1Error", "pl7.app/structure/confidence/cdrh1", "CDRH1 error (Å)", {}),
 		confidenceColumn("cdrh2Error", "pl7.app/structure/confidence/cdrh2", "CDRH2 error (Å)", {}),
 		confidenceColumn("cdrh3Error", "pl7.app/structure/confidence/cdrh3", "CDRH3 error (Å)",
-			{
-				"pl7.app/isScore": "true",
-				"pl7.app/table/orderPriority": "89000",
-				"pl7.app/description": "ABodyBuilder2 accuracy degrades for CDRH3 ≥ ~20 aa (Abanades et al., 2023, Fig. 4); long-CDRH3 predictions should be treated as lower-confidence regardless of the error value."
-			})
+			cdrh3Extra)
 	]
 	if isPaired {
 		cols = append(cols,
