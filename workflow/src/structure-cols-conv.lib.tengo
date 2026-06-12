@@ -60,7 +60,7 @@ getConfidenceColumns := func(isPaired, confidenceMetric, threshold) {
 				valueType: "String",
 				name: "pl7.app/label",
 				annotations: {
-					"pl7.app/label": "Clone",
+					"pl7.app/label": "Clone Id",
 					"pl7.app/table/orderPriority": "100000"
 				}
 			}
