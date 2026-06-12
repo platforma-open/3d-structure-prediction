@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.3d-structure-prediction.workflow
 
+## 1.2.1
+
+### Patch Changes
+
+- 49704f6: Rename clonotype row-axis label column header from "Clone" to "Clone Id" to match the upstream dataset label
+
 ## 1.2.0
 
 ### Minor Changes
