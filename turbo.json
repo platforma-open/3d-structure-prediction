@@ -3,7 +3,7 @@
   "globalDependencies": ["tsconfig.json"],
   "tasks": {
     "fmt": {
-      "outputs": []
+      "cache": false
     },
     "check": {
       "dependsOn": ["^build"],
@@ -19,8 +19,12 @@
       "dependsOn": ["build"],
       "outputs": ["./dist/**"]
     },
+    "do-pack": {
+      "dependsOn": ["build"],
+      "outputs": ["package.tgz"]
+    },
     "test": {
-      "dependsOn": ["^build:dev", "build"],
+      "dependsOn": ["build", "check"],
       "passThroughEnv": ["PL_ADDRESS", "PL_TEST_PASSWORD", "PL_TEST_USER", "PL_TEST_PROXY", "DEBUG"]
     },
     "mark-stable": {

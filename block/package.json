@@ -1,21 +1,26 @@
 {
   "name": "@platforma-open/milaboratories.3d-structure-prediction",
   "version": "1.2.1",
-  "scripts": {
-    "build": "shx rm -rf ./block-pack && block-tools pack",
-    "mark-stable": "block-tools mark-stable -r 's3://milab-euce1-prod-pkgs-s3-block-registry/pub/releases/?region=eu-central-1'",
-    "prepublishOnly": "block-tools pack && block-tools publish --unstable -r 's3://milab-euce1-prod-pkgs-s3-block-registry/pub/releases/?region=eu-central-1'",
-    "do-pack": "shx rm -f *.tgz && block-tools pack && pnpm pack && shx mv *.tgz package.tgz"
-  },
   "files": [
     "index.d.ts",
     "index.js"
   ],
-  "dependencies": {
-    "@platforma-open/milaboratories.3d-structure-prediction.workflow": "workspace:*",
-    "@platforma-open/milaboratories.3d-structure-prediction.model": "workspace:*",
-    "@platforma-open/milaboratories.3d-structure-prediction.ui": "workspace:*"
+  "scripts": {
+    "build": "shx rm -rf ./block-pack && block-tools pack",
+    "mark-stable": "block-tools mark-stable -r 's3://milab-euce1-prod-pkgs-s3-block-registry/pub/releases/?region=eu-central-1'",
+    "prepublishOnly": "block-tools pack && block-tools publish -r 's3://milab-euce1-prod-pkgs-s3-block-registry/pub/releases/?region=eu-central-1'",
+    "do-pack": "shx rm -f *.tgz && block-tools pack && pnpm pack && shx mv *.tgz package.tgz"
   },
+  "dependencies": {
+    "@platforma-open/milaboratories.3d-structure-prediction.model": "workspace:*",
+    "@platforma-open/milaboratories.3d-structure-prediction.ui": "workspace:*",
+    "@platforma-open/milaboratories.3d-structure-prediction.workflow": "workspace:*"
+  },
+  "devDependencies": {
+    "@platforma-sdk/block-tools": "catalog:",
+    "shx": "catalog:"
+  },
+  "packageManager": "pnpm@9.12.0",
   "block": {
     "components": {
       "workflow": "@platforma-open/milaboratories.3d-structure-prediction.workflow/dist/tengo/tpl/main.plj.gz",
@@ -46,9 +51,5 @@
         "macosx-aarch64"
       ]
     }
-  },
-  "devDependencies": {
-    "@platforma-sdk/block-tools": "catalog:"
-  },
-  "packageManager": "pnpm@9.12.0"
+  }
 }
