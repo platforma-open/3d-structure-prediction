@@ -74,6 +74,20 @@ export type BlockData = {
 };
 
 /**
+ * Result of the `clonotypeCount` model output. Carries the count alongside an
+ * `inputKey` fingerprint of the selections it was computed from. Model outputs
+ * recompute asynchronously after `data` changes, so the UI must reject a stale
+ * result (one whose `inputKey` no longer matches the live selection) before
+ * mirroring `count` into `data.lastClonotypeCount` — otherwise a previous
+ * dataset's count could re-arm the Run gate on a freshly-swapped, much larger
+ * input. See `clonotypeCountInputKey` in `index.ts`.
+ */
+export type ClonotypeCountResult = {
+  count: number | undefined;
+  inputKey: string;
+};
+
+/**
  * Previous-version `BlockData` schema (pre-species). Kept so the data-model
  * migration can typecheck `prev` cleanly. Remove only after dropping the
  * matching migration step in `dataModel.ts`.

@@ -21,7 +21,7 @@ import {
   parseResourceMap,
 } from "@platforma-sdk/model";
 import { blockDataModel } from "./dataModel";
-import type { BlockArgs, BlockData, PredictionSummary } from "./types";
+import type { BlockArgs, BlockData, ClonotypeCountResult, PredictionSummary } from "./types";
 
 /** Extract the user-picked primary column PlRef from a `DatasetSelection`. */
 function datasetColumnRef(dataset: DatasetSelection | undefined): PlRef | undefined {
@@ -63,7 +63,7 @@ export { blockDataModel } from "./dataModel";
  * derived synchronously from result-pool column stats (see `clonotypeCount`).
  * Exposed so the UI can show the same number in the alert.
  */
-export const MAX_CLONOTYPES = 10_000;
+export const MAX_CLONOTYPES = 1_000;
 
 export const confidenceMetricOptions = [
   { label: "CDR-H3 mean", value: "cdrh3Mean" },
@@ -137,6 +137,24 @@ export function defaultBlockLabelFor(args: Partial<BlockData>): string {
   return `${speciesLabel} ${engine}, ${metric} ≤ ${threshold.toFixed(1)} Å`;
 }
 
+/**
+ * Canonical fingerprint of the selections that determine the clonotype count:
+ * dataset column, optional filter, and heavy-chain pick. Stamped onto the
+ * `clonotypeCount` output and re-derived from live `data` in the UI, so a
+ * stale output (from a prior selection, mid async-recompute) can be detected
+ * and rejected before it re-arms the Run gate. Only column identity matters
+ * (`blockId`/`name`); `requireEnrichments` doesn't change the counted rows.
+ */
+export function clonotypeCountInputKey(data: Pick<BlockData, "dataset" | "heavyChainRef">): string {
+  const col = data.dataset?.primary.column;
+  const filter = data.dataset?.primary.filter;
+  return JSON.stringify({
+    column: col ? [col.blockId, col.name] : null,
+    filter: filter ? [filter.blockId, filter.name] : null,
+    heavyChainRef: data.heavyChainRef ?? null,
+  });
+}
+
 export const platforma = BlockModelV3.create(blockDataModel)
 
   .args<BlockArgs>((data) => {
@@ -195,21 +213,25 @@ export const platforma = BlockModelV3.create(blockDataModel)
   //    so its row count is the number of distinct clonotypes.
   //
   // Surfaced to the UI alert and (via `app.ts` mirroring) to
-  // `data.lastClonotypeCount`, which `.args()` reads as the Run gate.
-  .output("clonotypeCount", (ctx): number | undefined => {
+  // `data.lastClonotypeCount`, which `.args()` reads as the Run gate. The
+  // result is stamped with `inputKey` so the UI can reject a stale value
+  // observed during the async recompute window (see `ClonotypeCountResult`).
+  .output("clonotypeCount", (ctx): ClonotypeCountResult | undefined => {
     const ref = datasetColumnRef(ctx.data.dataset);
     if (ref === undefined) return undefined;
+
+    const inputKey = clonotypeCountInputKey(ctx.data);
 
     const filterRef = ctx.data.dataset?.primary.filter;
     if (filterRef !== undefined) {
       const filterCol = ctx.resultPool.getPColumnByRef(filterRef);
-      return filterCol ? getNumberOfRows(filterCol.data) : undefined;
+      return { count: filterCol ? getNumberOfRows(filterCol.data) : undefined, inputKey };
     }
 
     const heavyRef = ctx.data.heavyChainRef;
-    if (heavyRef === undefined) return undefined;
+    if (heavyRef === undefined) return { count: undefined, inputKey };
     const datasetSpec = ctx.resultPool.getPColumnSpecByRef(ref);
-    if (datasetSpec === undefined) return undefined;
+    if (datasetSpec === undefined) return { count: undefined, inputKey };
     const isSingleCell = datasetSpec.axesSpec[1]?.name === "pl7.app/vdj/scClonotypeKey";
     const cols = ctx.resultPool.getAnchoredPColumns(
       { main: ref },
@@ -217,7 +239,7 @@ export const platforma = BlockModelV3.create(blockDataModel)
       { ignoreMissingDomains: true },
     );
     const heavyCol = cols?.find((c) => (c.id as string) === (heavyRef as string));
-    return heavyCol ? getNumberOfRows(heavyCol.data) : undefined;
+    return { count: heavyCol ? getNumberOfRows(heavyCol.data) : undefined, inputKey };
   })
 
   // Datasets surfaced in `PlDatasetSelector`. Restricted to clonotype-keyed
