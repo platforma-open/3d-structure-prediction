@@ -70,14 +70,21 @@ export type BlockData = {
   graphStateCdrh3V2: GraphMakerState;
   scFvAlertDismissed: boolean;
   failureAlertDismissed: boolean;
-
-  /**
-   * Cached distinct clonotype count from the prerun pre-flight check.
-   * Mirrored from `outputs.clonotypeCount` by `app.ts`; consumed by `.args()`
-   * as the gating signal (`undefined` → still checking, `>` limit → blocked).
-   * Cleared on dataset/filter change to avoid stale-value leaks.
-   */
   lastClonotypeCount?: number;
+};
+
+/**
+ * Result of the `clonotypeCount` model output. Carries the count alongside an
+ * `inputKey` fingerprint of the selections it was computed from. Model outputs
+ * recompute asynchronously after `data` changes, so the UI must reject a stale
+ * result (one whose `inputKey` no longer matches the live selection) before
+ * mirroring `count` into `data.lastClonotypeCount` — otherwise a previous
+ * dataset's count could re-arm the Run gate on a freshly-swapped, much larger
+ * input. See `clonotypeCountInputKey` in `index.ts`.
+ */
+export type ClonotypeCountResult = {
+  count: number | undefined;
+  inputKey: string;
 };
 
 /**

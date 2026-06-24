@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  clonotypeCountInputKey,
   confidenceMetricOptions,
   defaultBlockLabelFor,
   MAX_CLONOTYPES,
@@ -81,10 +82,18 @@ const tableSettings = usePlDataTableSettingsV2({
   model: () => app.model.outputs.structuresTable,
 });
 
-// Distinct clonotype count from the prerun pre-flight check. Drives both the
-// "too large" warning alert below and (via app.ts mirroring into
-// data.lastClonotypeCount) the Run-button gate in .args().
-const clonotypeCount = computed(() => app.model.outputs.clonotypeCount);
+// Distinct clonotype count, derived synchronously in the model. Drives both
+// the "too large" warning alert below and (via app.ts mirroring into
+// data.lastClonotypeCount) the Run-button gate in .args(). Ignore a result
+// whose inputKey doesn't match the live selection — it's a stale value from
+// the previous dataset, observed during the output's async recompute window.
+const clonotypeCount = computed(() => {
+  const result = app.model.outputs.clonotypeCount;
+  if (result === undefined || result.inputKey !== clonotypeCountInputKey(app.model.data)) {
+    return undefined;
+  }
+  return result.count;
+});
 const clonotypeCountTooHigh = computed(
   () => clonotypeCount.value !== undefined && clonotypeCount.value > MAX_CLONOTYPES,
 );

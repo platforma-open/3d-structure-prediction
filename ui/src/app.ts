@@ -1,4 +1,7 @@
-import { platforma } from "@platforma-open/milaboratories.3d-structure-prediction.model";
+import {
+  clonotypeCountInputKey,
+  platforma,
+} from "@platforma-open/milaboratories.3d-structure-prediction.model";
 import { defineAppV3 } from "@platforma-sdk/ui-vue";
 import { watch, watchEffect } from "vue";
 import Cdrh3ErrorPage from "./pages/Cdrh3ErrorPage.vue";
@@ -54,20 +57,31 @@ const unwatch = watch(sdkPlugin, ({ loaded }) => {
     }
   });
 
-  // Mirror the prerun's distinct-clonotype count back into data so that
-  // `.args()` can see it (V3 args() only receives data, not ctx). The throw
-  // in `.args()` is what disables the Run button when the count is missing
-  // or above MAX_CLONOTYPES.
+  // Mirror the model-derived distinct-clonotype count back into data so that
+  // `.args()` can see it (V3 args() only receives data, not ctx). The count is
+  // a pure synchronous derivation from result-pool stats, so every client
+  // converges to the same value. The throw in `.args()` is what disables the
+  // Run button when the count is missing or above MAX_CLONOTYPES.
+  //
+  // Outputs recompute asynchronously after a `data` change, so right after the
+  // user swaps dataset/filter/heavy chain `outputs.clonotypeCount` still holds
+  // the PREVIOUS selection's count. Mirroring it then would overwrite the
+  // just-cleared `lastClonotypeCount` with a stale (possibly small) value and
+  // re-enable Run on a much larger input. Guard with the result's `inputKey`:
+  // only mirror once it matches the live selection.
   watchEffect(() => {
-    const c = app.model.outputs.clonotypeCount;
-    if (c !== app.model.data.lastClonotypeCount) {
-      app.model.data.lastClonotypeCount = c;
+    const result = app.model.outputs.clonotypeCount;
+    if (result === undefined) return;
+    if (result.inputKey !== clonotypeCountInputKey(app.model.data)) return;
+    if (result.count !== app.model.data.lastClonotypeCount) {
+      app.model.data.lastClonotypeCount = result.count;
     }
   });
 
   // Stale-count guard: switching dataset or filter must clear the cached
   // count so the previous (smaller) value can't briefly keep Run enabled on
-  // a swap to a much larger input. Prerun will re-run and refill it.
+  // a swap to a much larger input. The model output re-derives, and the
+  // inputKey check above gates the refill so only the matching count lands.
   watch(
     () => [
       app.model.data.dataset?.primary?.column,
