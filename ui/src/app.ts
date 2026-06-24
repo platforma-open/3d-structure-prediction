@@ -54,10 +54,11 @@ const unwatch = watch(sdkPlugin, ({ loaded }) => {
     }
   });
 
-  // Mirror the prerun's distinct-clonotype count back into data so that
-  // `.args()` can see it (V3 args() only receives data, not ctx). The throw
-  // in `.args()` is what disables the Run button when the count is missing
-  // or above MAX_CLONOTYPES.
+  // Mirror the model-derived distinct-clonotype count back into data so that
+  // `.args()` can see it (V3 args() only receives data, not ctx). The count is
+  // a pure synchronous derivation from result-pool stats, so every client
+  // converges to the same value. The throw in `.args()` is what disables the
+  // Run button when the count is missing or above MAX_CLONOTYPES.
   watchEffect(() => {
     const c = app.model.outputs.clonotypeCount;
     if (c !== app.model.data.lastClonotypeCount) {
@@ -67,7 +68,7 @@ const unwatch = watch(sdkPlugin, ({ loaded }) => {
 
   // Stale-count guard: switching dataset or filter must clear the cached
   // count so the previous (smaller) value can't briefly keep Run enabled on
-  // a swap to a much larger input. Prerun will re-run and refill it.
+  // a swap to a much larger input. The model output re-derives and refills it.
   watch(
     () => [
       app.model.data.dataset?.primary?.column,

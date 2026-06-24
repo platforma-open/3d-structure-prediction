@@ -9,8 +9,6 @@ structureColsConv := import(":structure-cols-conv")
 
 predictBatchTpl := assets.importTemplate(":predict-batch")
 
-wf.setPreRun(assets.importTemplate(":prerun"))
-
 wf.prepare(func(args) {
 	// args.dataset is a PrimaryRef { __isPrimaryRef: "v1", column: PlRef, filter?: PlRef }.
 	// `addAnchor` resolves the dataset column (also gives us its spec for the

@@ -15,6 +15,7 @@ import {
   buildDatasetOptions,
   createPFrameForGraphs,
   createPlDataTableV3,
+  getNumberOfRows,
   isPColumnSpec,
   OutputColumnProvider,
   parseResourceMap,
@@ -58,8 +59,9 @@ export { blockDataModel } from "./dataModel";
 
 /**
  * Maximum number of distinct clonotypes the block is allowed to run on.
- * Above this, the prerun gate trips and `.args()` throws so the Run button
- * stays disabled. Exposed so the UI can show the same number in the alert.
+ * Above this, `.args()` throws so the Run button stays disabled. The count is
+ * derived synchronously from result-pool column stats (see `clonotypeCount`).
+ * Exposed so the UI can show the same number in the alert.
  */
 export const MAX_CLONOTYPES = 10_000;
 
@@ -149,9 +151,10 @@ export const platforma = BlockModelV3.create(blockDataModel)
     if (data.lightChainRef !== undefined && data.heavyChainRef === data.lightChainRef) {
       throw new Error("Heavy and light chain sequences must be different columns");
     }
-    // Pre-flight gate. Inputs are picked but the prerun pipeline writes a
-    // distinct-clonotype count back into data via app.ts. Until that lands,
-    // and when it exceeds the limit, Run stays disabled.
+    // Pre-flight gate. The `clonotypeCount` output derives the distinct-
+    // clonotype count synchronously from result-pool stats; app.ts mirrors it
+    // into `data.lastClonotypeCount` (args sees only `data`, never ctx). Until
+    // that lands, and when it exceeds the limit, Run stays disabled.
     if (data.lastClonotypeCount === undefined) {
       throw new Error("Checking dataset size…");
     }
@@ -177,34 +180,44 @@ export const platforma = BlockModelV3.create(blockDataModel)
     };
   })
 
-  // Prerun args — staging phase only needs dataset + heavy chain to count
-  // distinct clonotype keys. Returning `undefined` defers the prerun until
-  // both inputs are picked so we don't fire it on every keystroke.
-  .prerunArgs((data) => {
-    if (data.dataset === undefined) return undefined;
-    if (data.heavyChainRef === undefined) return undefined;
-    return {
-      dataset: data.dataset.primary,
-      heavyChainRef: data.heavyChainRef,
-    };
-  })
-
-  // Distinct clonotype count from the prerun pre-flight. The prerun saves a
-  // single-row TSV (`count\n<n>\n`) via `df.saveContent`; we parse the integer
-  // here. Surfaced both to the UI alert and (via `app.ts` mirroring) to
-  // `data.lastClonotypeCount` which `.args()` uses as the Run gate.
+  // Distinct-clonotype count for the Run-button pre-flight gate, derived
+  // synchronously from result-pool column stats — no prerun needed.
+  // `getNumberOfRows` sums each Parquet chunk's precomputed row stats from
+  // resource metadata without downloading blobs (returns undefined while the
+  // data isn't ready yet).
+  //
+  //  - Filter present: the lead-selection filter is a clonotype-keyed subset
+  //    column (one row per selected clonotype, `pl7.app/isSubset`), so its row
+  //    count is exactly the post-filter keyspace the main batch run fans out
+  //    over. (A clonotype with no heavy-chain sequence would over-count by one
+  //    vs the heavy⋈filter join — negligible and conservative for a guardrail.)
+  //  - No filter: the heavy-chain column is keyed solely by the clonotype axis,
+  //    so its row count is the number of distinct clonotypes.
+  //
+  // Surfaced to the UI alert and (via `app.ts` mirroring) to
+  // `data.lastClonotypeCount`, which `.args()` reads as the Run gate.
   .output("clonotypeCount", (ctx): number | undefined => {
-    const acc = ctx.prerun?.resolve({
-      field: "clonotypeCount",
-      assertFieldType: "Input",
-      allowPermanentAbsence: true,
-    });
-    const raw = acc?.getDataAsString();
-    if (raw === undefined) return undefined;
-    const lines = raw.trim().split("\n");
-    if (lines.length < 2) return undefined;
-    const n = Number(lines[1].trim());
-    return Number.isFinite(n) ? n : undefined;
+    const ref = datasetColumnRef(ctx.data.dataset);
+    if (ref === undefined) return undefined;
+
+    const filterRef = ctx.data.dataset?.primary.filter;
+    if (filterRef !== undefined) {
+      const filterCol = ctx.resultPool.getPColumnByRef(filterRef);
+      return filterCol ? getNumberOfRows(filterCol.data) : undefined;
+    }
+
+    const heavyRef = ctx.data.heavyChainRef;
+    if (heavyRef === undefined) return undefined;
+    const datasetSpec = ctx.resultPool.getPColumnSpecByRef(ref);
+    if (datasetSpec === undefined) return undefined;
+    const isSingleCell = datasetSpec.axesSpec[1]?.name === "pl7.app/vdj/scClonotypeKey";
+    const cols = ctx.resultPool.getAnchoredPColumns(
+      { main: ref },
+      sequenceMatchersForDataset(isSingleCell),
+      { ignoreMissingDomains: true },
+    );
+    const heavyCol = cols?.find((c) => (c.id as string) === (heavyRef as string));
+    return heavyCol ? getNumberOfRows(heavyCol.data) : undefined;
   })
 
   // Datasets surfaced in `PlDatasetSelector`. Restricted to clonotype-keyed

@@ -70,13 +70,6 @@ export type BlockData = {
   graphStateCdrh3V2: GraphMakerState;
   scFvAlertDismissed: boolean;
   failureAlertDismissed: boolean;
-
-  /**
-   * Cached distinct clonotype count from the prerun pre-flight check.
-   * Mirrored from `outputs.clonotypeCount` by `app.ts`; consumed by `.args()`
-   * as the gating signal (`undefined` → still checking, `>` limit → blocked).
-   * Cleared on dataset/filter change to avoid stale-value leaks.
-   */
   lastClonotypeCount?: number;
 };
 
