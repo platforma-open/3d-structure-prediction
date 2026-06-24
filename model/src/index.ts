@@ -63,7 +63,7 @@ export { blockDataModel } from "./dataModel";
  * derived synchronously from result-pool column stats (see `clonotypeCount`).
  * Exposed so the UI can show the same number in the alert.
  */
-export const MAX_CLONOTYPES = 1_000;
+export const MAX_CLONOTYPES = 10_000;
 
 export const confidenceMetricOptions = [
   { label: "CDR-H3 mean", value: "cdrh3Mean" },
