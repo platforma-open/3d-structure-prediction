@@ -1,6 +1,7 @@
 import type {
   AnchoredPColumnSelector,
   AxisId,
+  AxisSpec,
   DatasetOption,
   DatasetSelection,
   InferOutputsType,
@@ -83,6 +84,28 @@ export const speciesOptions = [
   { label: "Rabbit", value: "rabbit" },
   { label: "Other", value: "other" },
 ] as const;
+
+/**
+ * Whether a dataset's row axis identifies antibody records this block can fold.
+ *
+ * Three producers key on the shared `pl7.app/variantKey` axis and only the run-id
+ * in its domain tells them apart: peptide-extraction stamps
+ * `pl7.app/peptide/extractionRunId`, synthetic-repertoire-profiler stamps
+ * `pl7.app/repertoire/extractionRunId`, and import-vdj-data's bare antibody sets
+ * stamp `pl7.app/vdj/clonotypingRunId`. Only the last is a receptor set — admitting
+ * `variantKey` on the axis name alone would offer peptides and amplicon variants to
+ * an antibody structure predictor.
+ */
+function isFoldableRowAxis(axis: AxisSpec | undefined): boolean {
+  if (axis === undefined) return false;
+  if (axis.name === "pl7.app/vdj/clonotypeKey" || axis.name === "pl7.app/vdj/scClonotypeKey") {
+    return true;
+  }
+  return (
+    axis.name === "pl7.app/variantKey" &&
+    axis.domain?.["pl7.app/vdj/clonotypingRunId"] !== undefined
+  );
+}
 
 const VDJ_FEATURES = ["VDJRegion", "VDJRegionInFrame"];
 
@@ -242,8 +265,10 @@ export const platforma = BlockModelV3.create(blockDataModel)
     return { count: heavyCol ? getNumberOfRows(heavyCol.data) : undefined, inputKey };
   })
 
-  // Datasets surfaced in `PlDatasetSelector`. Restricted to clonotype-keyed
-  // anchor PColumns; the `filter` predicate narrows discovered filter columns
+  // Datasets surfaced in `PlDatasetSelector`. Restricted to anchor PColumns whose
+  // row axis identifies a receptor record — see `isFoldableRowAxis`, which also
+  // admits import-vdj-data's bare antibody sets on the shared `pl7.app/variantKey`
+  // axis; the `filter` predicate narrows discovered filter columns
   // to those originating from antibody-tcr Lead Selection — the canonical
   // workflow for "predict structures of selected leads". Filter labels are
   // derived by the SDK via `deriveDistinctLabels`.
@@ -254,8 +279,7 @@ export const platforma = BlockModelV3.create(blockDataModel)
         if (spec.annotations?.["pl7.app/isAnchor"] !== "true") return false;
         if (spec.axesSpec.length < 2) return false;
         if (spec.axesSpec[0]?.name !== "pl7.app/sampleId") return false;
-        const rowAxis = spec.axesSpec[1]?.name;
-        return rowAxis === "pl7.app/vdj/clonotypeKey" || rowAxis === "pl7.app/vdj/scClonotypeKey";
+        return isFoldableRowAxis(spec.axesSpec[1]);
       },
       filter: (spec: PObjectSpec): boolean => hasLeadSelectionTrace(spec.annotations),
     }),
@@ -290,6 +314,16 @@ export const platforma = BlockModelV3.create(blockDataModel)
     return ref !== undefined ? ctx.resultPool.getPColumnSpecByRef(ref) : undefined;
   })
 
+  /**
+   * Legacy MiXCR single-cell only. A bare imported set carries its two chains in
+   * the `pl7.app/vdj/scClonotypeChain` COLUMN domain on a `variantKey` axis, so it
+   * reads as `false` here — deliberately. The flag's only effect is whether
+   * `sequenceMatchersForDataset` filters on `scClonotypeChain/index: "primary"`, and
+   * an imported set has no secondary alleles to exclude (a mapping that assigns two
+   * columns to one chain is refused at import). Both chains therefore reach the
+   * dropdown either way, which is what this block wants: the user assigns heavy and
+   * light explicitly.
+   */
   .output("isSingleCell", (ctx) => {
     const ref = datasetColumnRef(ctx.data.dataset);
     if (ref === undefined) return undefined;
@@ -404,6 +438,11 @@ export const platforma = BlockModelV3.create(blockDataModel)
   // Heuristic scFv detector: a bulk dataset where both heavy and light
   // chain sequence columns sit on the same clonotypeKey axis is suspicious.
   // sc datasets are excluded because pairing is normal there.
+  //
+  // Bare imported sets (`variantKey`) are excluded for the same reason and the test
+  // below is left keyed on `clonotypeKey` on purpose: there, a paired record is what
+  // the scientist declared by assigning columns to a heavy and a light slot, so two
+  // chains on one key is the intended shape rather than a sign of an scFv.
   .output("isScFvSuspect", (ctx): boolean => {
     const ref = datasetColumnRef(ctx.data.dataset);
     if (ref === undefined) return false;
