@@ -6,6 +6,7 @@ import type {
   DatasetSelection,
   InferOutputsType,
   PColumnIdAndSpec,
+  PColumnSpec,
   PFrameHandle,
   PlDataTableModel,
   PlRef,
@@ -86,35 +87,94 @@ export const speciesOptions = [
 ] as const;
 
 /**
+ * A synthetic-repertoire-profiler row axis holding a foldable V domain.
+ *
+ * The profiler declares what its run produced instead of leaving consumers to
+ * guess: `pl7.app/modality` is `vdj` for a V-domain repertoire and `amplicon`
+ * for a designed library, phage pool or deep mutational scan. Only `vdj` runs
+ * are foldable.
+ *
+ * The alphabet is part of the gate too. One profiler run emits an nt-keyed and
+ * an aa-keyed dataset, and each sequence column carries the alphabet of its own
+ * axis. Admitting the nt dataset would put it in the picker with no amino-acid
+ * sequence behind it, so Run could never leave "Heavy chain sequence is
+ * required".
+ */
+function isProfilerVdjRowAxis(axis: AxisSpec | undefined): boolean {
+  return (
+    axis?.name === "pl7.app/variantKey" &&
+    axis.domain?.["pl7.app/modality"] === "vdj" &&
+    axis.domain?.["pl7.app/alphabet"] === "aminoacid"
+  );
+}
+
+/**
  * Whether a dataset's row axis identifies antibody records this block can fold.
  *
- * Three producers key on the shared `pl7.app/variantKey` axis and only the run-id
- * in its domain tells them apart: peptide-extraction stamps
- * `pl7.app/peptide/extractionRunId`, synthetic-repertoire-profiler stamps
- * `pl7.app/repertoire/extractionRunId`, and import-vdj-data's bare antibody sets
- * stamp `pl7.app/vdj/clonotypingRunId`. Only the last is a receptor set — admitting
- * `variantKey` on the axis name alone would offer peptides and amplicon variants to
- * an antibody structure predictor.
+ * Three producers key on the shared `pl7.app/variantKey` axis, so the axis name
+ * says nothing about what the rows are. Admitting it bare would offer peptides
+ * and designed-library variants to an antibody structure predictor. Two marks in
+ * the axis domain pick out the foldable ones:
+ *
+ *  - `pl7.app/vdj/clonotypingRunId` — import-vdj-data's bare antibody sets.
+ *  - `pl7.app/modality: vdj` — synthetic-repertoire-profiler's own declaration
+ *    (see `isProfilerVdjRowAxis`).
+ *
+ * peptide-extraction stamps `pl7.app/peptide/extractionRunId` and neither mark,
+ * so it stays out.
  */
 function isFoldableRowAxis(axis: AxisSpec | undefined): boolean {
   if (axis === undefined) return false;
   if (axis.name === "pl7.app/vdj/clonotypeKey" || axis.name === "pl7.app/vdj/scClonotypeKey") {
     return true;
   }
-  return (
-    axis.name === "pl7.app/variantKey" &&
-    axis.domain?.["pl7.app/vdj/clonotypingRunId"] !== undefined
-  );
+  if (axis.name !== "pl7.app/variantKey") return false;
+  return axis.domain?.["pl7.app/vdj/clonotypingRunId"] !== undefined || isProfilerVdjRowAxis(axis);
 }
 
 const VDJ_FEATURES = ["VDJRegion", "VDJRegionInFrame"];
 
 /**
- * AA sequence column matchers anchored to the selected dataset's clonotype axis.
- * For single-cell data, restrict to "primary" chains so only one heavy + one light
- * column appears per chain class.
+ * The profiler's feature key for the whole-variant sequence. It is fixed at
+ * "amplicon-sequence" in both modalities on purpose, so the key stays matchable
+ * whatever region scheme the run used. On a `vdj` run the complete-feature name
+ * (VDJRegion) rides in the column label and in `pl7.app/isAssemblingFeature`
+ * instead. See `aggregatedColumns` in
+ * synthetic-repertoire-profiler/workflow/src/column-specs.lib.tengo.
  */
-function sequenceMatchersForDataset(isSingleCell: boolean): AnchoredPColumnSelector[] {
+const PROFILER_VARIANT_FEATURE = "amplicon-sequence";
+
+/**
+ * AA sequence column matchers anchored to the selected dataset's row axis.
+ *
+ * There are two naming worlds here. MiXCR and import-vdj-data emit
+ * `pl7.app/vdj/sequence` keyed by `pl7.app/vdj/feature`. The profiler emits
+ * `pl7.app/sequence` keyed by `pl7.app/feature`. Matching the wrong one leaves
+ * both chain dropdowns empty, so the dataset looks accepted but cannot run.
+ *
+ * For a profiler run only the whole-variant column is offered. Its per-region
+ * columns (FR1 … CDR3 … FR4) sit on the same axis under the same name, but
+ * folding a lone CDR3 is not a structure prediction.
+ */
+function sequenceMatchersForDataset(datasetSpec: PColumnSpec): AnchoredPColumnSelector[] {
+  const rowAxis = datasetSpec.axesSpec[1];
+
+  if (isProfilerVdjRowAxis(rowAxis)) {
+    return [
+      {
+        axes: [{ anchor: "main", idx: 1 }],
+        name: "pl7.app/sequence",
+        domain: {
+          "pl7.app/alphabet": "aminoacid",
+          "pl7.app/feature": PROFILER_VARIANT_FEATURE,
+        },
+      },
+    ];
+  }
+
+  // For single-cell data, restrict to "primary" chains so only one heavy + one
+  // light column appears per chain class.
+  const isSingleCell = rowAxis?.name === "pl7.app/vdj/scClonotypeKey";
   return VDJ_FEATURES.map((feature) => {
     const baseDomain: Record<string, string> = {
       "pl7.app/alphabet": "aminoacid",
@@ -255,10 +315,9 @@ export const platforma = BlockModelV3.create(blockDataModel)
     if (heavyRef === undefined) return { count: undefined, inputKey };
     const datasetSpec = ctx.resultPool.getPColumnSpecByRef(ref);
     if (datasetSpec === undefined) return { count: undefined, inputKey };
-    const isSingleCell = datasetSpec.axesSpec[1]?.name === "pl7.app/vdj/scClonotypeKey";
     const cols = ctx.resultPool.getAnchoredPColumns(
       { main: ref },
-      sequenceMatchersForDataset(isSingleCell),
+      sequenceMatchersForDataset(datasetSpec),
       { ignoreMissingDomains: true },
     );
     const heavyCol = cols?.find((c) => (c.id as string) === (heavyRef as string));
@@ -267,8 +326,9 @@ export const platforma = BlockModelV3.create(blockDataModel)
 
   // Datasets surfaced in `PlDatasetSelector`. Restricted to anchor PColumns whose
   // row axis identifies a receptor record — see `isFoldableRowAxis`, which also
-  // admits import-vdj-data's bare antibody sets on the shared `pl7.app/variantKey`
-  // axis; the `filter` predicate narrows discovered filter columns
+  // admits two producers on the shared `pl7.app/variantKey` axis: import-vdj-data's
+  // bare antibody sets, and synthetic-repertoire-profiler runs that declare
+  // `pl7.app/modality: vdj`; the `filter` predicate narrows discovered filter columns
   // to those originating from antibody-tcr Lead Selection — the canonical
   // workflow for "predict structures of selected leads". Filter labels are
   // derived by the SDK via `deriveDistinctLabels`.
@@ -286,9 +346,16 @@ export const platforma = BlockModelV3.create(blockDataModel)
   )
 
   /**
-   * AA sequence options anchored to the selected dataset. The dropdown labels
-   * carry chain info (IGH/IGK/IGL or scClonotypeChain A/B), which the user uses
-   * to assign columns to heavy vs light. Same shape as `clonotype-clustering`.
+   * AA sequence options anchored to the selected dataset. For MiXCR-style input
+   * the dropdown labels carry chain info (IGH/IGK/IGL or scClonotypeChain A/B),
+   * which the user uses to assign columns to heavy vs light. Same shape as
+   * `clonotype-clustering`.
+   *
+   * A synthetic-repertoire-profiler run carries no chain or receptor key, and it
+   * frames variants against one parent, so it yields exactly one option — the
+   * whole-variant AA sequence. That is a single chain, so such a dataset only
+   * runs in NanoBodyBuilder2 mode; picking ABodyBuilder2 leaves no column for the
+   * light slot and `.args()` keeps Run disabled.
    */
   .output("sequenceOptions", (ctx) => {
     const ref = datasetColumnRef(ctx.data.dataset);
@@ -297,11 +364,9 @@ export const platforma = BlockModelV3.create(blockDataModel)
     const datasetSpec = ctx.resultPool.getPColumnSpecByRef(ref);
     if (datasetSpec === undefined) return undefined;
 
-    const isSingleCell = datasetSpec.axesSpec[1]?.name === "pl7.app/vdj/scClonotypeKey";
-
     return ctx.resultPool.getCanonicalOptions(
       { main: ref },
-      sequenceMatchersForDataset(isSingleCell),
+      sequenceMatchersForDataset(datasetSpec),
       {
         ignoreMissingDomains: true,
         labelOps: { includeNativeLabel: true },
