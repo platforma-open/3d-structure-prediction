@@ -1,5 +1,6 @@
 packages:
   - block
+  - kind
   - model
   - software
   - test
@@ -12,7 +13,15 @@ catalog:
   "@platforma-sdk/workflow-tengo": 6.8.3
   "@platforma-sdk/block-tools": 2.14.3
   "@platforma-sdk/model": 1.83.0
-  "@platforma-sdk/ui-vue": 1.83.1
+  # Held one patch behind the structurer's derived pin. ui-vue 1.83.1 stopped
+  # publishing dist/components/*.vue.d.ts, which its own dist/lib.d.ts
+  # re-exports. The slim facade inlines every type in the model's public
+  # surface, and BlockData's GraphMakerState reaches ui-vue through
+  # graph-maker/dist/forms, so the facade build fails on four unresolvable
+  # .vue specifiers. Every version from 1.79.20 to 1.83.0 ships them. Drop
+  # this pin once a fixed ui-vue is published.
+  # Same pin and same reason as blocks/sequence-properties.
+  "@platforma-sdk/ui-vue": 1.83.0
   "@platforma-sdk/test": 1.83.2
   "@platforma-sdk/tengo-builder": 4.0.23
   "@platforma-sdk/package-builder": 3.15.0
@@ -22,7 +31,7 @@ catalog:
   "@platforma-open/milaboratories.immunebuilder-weights-assets": ^1.1.0
 
   "@milaboratories/graph-maker": 1.4.6
-  "@milaboratories/helpers": 1.14.2
+  "@milaboratories/helpers": 1.14.5
   "@milaboratories/structure-viewer": 0.3.0
 
   "vue": 3.5.24
@@ -32,3 +41,5 @@ catalog:
   "shx": 0.4.0
   "@changesets/cli": 2.29.8
   vitest: ~4.0.18
+  "@platforma-sdk/block-kind": 1.1.0
+  typescript: ~5.9.3

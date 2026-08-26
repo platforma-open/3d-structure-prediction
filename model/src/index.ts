@@ -13,15 +13,16 @@ import type {
   PObjectSpec,
 } from "@platforma-sdk/model";
 import {
+  AccessorColumnsProvider,
   BlockModelV3,
   buildDatasetOptions,
   createPFrameForGraphs,
   createPlDataTableV3,
   getNumberOfRows,
   isPColumnSpec,
-  OutputColumnProvider,
   parseResourceMap,
 } from "@platforma-sdk/model";
+import { kind } from "@platforma-open/milaboratories.3d-structure-prediction.kind";
 import { blockDataModel } from "./dataModel";
 import type { BlockArgs, BlockData, ClonotypeCountResult, PredictionSummary } from "./types";
 
@@ -238,7 +239,23 @@ export function clonotypeCountInputKey(data: Pick<BlockData, "dataset" | "heavyC
   });
 }
 
-export const platforma = BlockModelV3.create(blockDataModel)
+export const platforma = BlockModelV3.create({ dataModel: blockDataModel, kind })
+
+  /**
+   * The init-params projection — the inverse of `init` in `dataModel.ts`. It
+   * names exactly the fields the kind's `BlockParams` declares, so exporting a
+   * block to a template and applying that template round-trips.
+   *
+   * Input selections are absent on purpose: `dataset`, `heavyChainRef` and
+   * `lightChainRef` are anchor-bound and meaningless in another project. View
+   * state is absent because it is not configuration.
+   */
+  .templateParams((data) => ({
+    mode: data.mode,
+    species: data.species,
+    confidenceMetric: data.confidenceMetric,
+    confidenceThresholdAngstroms: data.confidenceThresholdAngstroms,
+  }))
 
   .args<BlockArgs>((data) => {
     if (data.dataset === undefined) throw new Error("VDJ dataset is required");
@@ -400,23 +417,28 @@ export const platforma = BlockModelV3.create(blockDataModel)
   .outputWithStatus("structuresTable", (ctx): PlDataTableModel | undefined => {
     const acc = ctx.outputs?.resolve("structuresTable");
     if (acc === undefined) return undefined;
-    const snapshots = new OutputColumnProvider(acc).getAllColumns();
-    if (snapshots.length === 0) return undefined;
+    // `AccessorColumnsProvider` is a memoised factory keyed on the accessor
+    // root, not a constructor — calling it again with the same `acc` returns
+    // the same instance, so building it once and reusing it is free either way.
+    const provider = AccessorColumnsProvider(acc);
+    const columns = provider.getColumns();
+    if (columns.length === 0) return undefined;
 
-    // Pick any value-bearing snapshot as the row-axis anchor. Discovery is
+    // Pick any value-bearing column as the row-axis anchor. Discovery is
     // axis-driven, so the specific column doesn't matter — only its axesSpec.
-    const anchorSpec = (snapshots.find((s) => s.spec.name !== "pl7.app/label") ?? snapshots[0])
-      .spec;
+    const anchorSpec = (
+      columns.find((c) => c.getSpec().name !== "pl7.app/label") ?? columns[0]
+    ).getSpec();
 
     // Use the discoverColumnOptions form so V3 runs `getMatchingLabelColumns`
     // and surfaces `pl7.app/label` columns as axis-value substitutions
     // (matches V2 behavior). Sources are limited to our own output PFrame
-    // (`OutputColumnProvider(acc)`) — the label column we emit from the
-    // python wrapper is part of `acc` and gets discovered there. maxHops: 0
-    // disables linker-chain traversal since our PFrame is self-contained.
+    // (the provider above) — the label column we emit from the python wrapper
+    // is part of `acc` and gets discovered there. maxHops: 0 disables
+    // linker-chain traversal since our PFrame is self-contained.
     return createPlDataTableV3(ctx, {
       columns: {
-        sources: [new OutputColumnProvider(acc)],
+        sources: [provider],
         anchors: { main: anchorSpec },
         selector: { mode: "enrichment", maxHops: 0 },
       },

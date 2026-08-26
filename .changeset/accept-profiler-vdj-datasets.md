@@ -1,6 +1,6 @@
 ---
-'@platforma-open/milaboratories.3d-structure-prediction.model': minor
-'@platforma-open/milaboratories.3d-structure-prediction': minor
+'@platforma-open/milaboratories.3d-structure-prediction.model': patch
+'@platforma-open/milaboratories.3d-structure-prediction': patch
 ---
 
 Accept synthetic-repertoire-profiler VDJ datasets

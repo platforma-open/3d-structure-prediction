@@ -13,8 +13,8 @@ catalogs:
       specifier: 1.4.6
       version: 1.4.6
     '@milaboratories/helpers':
-      specifier: 1.14.2
-      version: 1.14.2
+      specifier: 1.14.5
+      version: 1.14.5
     '@milaboratories/structure-viewer':
       specifier: 0.3.0
       version: 0.3.0
@@ -30,15 +30,15 @@ catalogs:
     '@platforma-open/milaboratories.runenv-python-3':
       specifier: 1.8.6
       version: 1.8.6
+    '@platforma-sdk/block-kind':
+      specifier: 1.1.0
+      version: 1.1.0
     '@platforma-sdk/block-tools':
       specifier: 2.14.3
       version: 2.14.3
     '@platforma-sdk/model':
       specifier: 1.83.0
       version: 1.83.0
-    '@platforma-sdk/package-builder':
-      specifier: 3.15.0
-      version: 3.15.0
     '@platforma-sdk/tengo-builder':
       specifier: 4.0.23
       version: 4.0.23
@@ -46,8 +46,8 @@ catalogs:
       specifier: 1.83.2
       version: 1.83.2
     '@platforma-sdk/ui-vue':
-      specifier: 1.83.1
-      version: 1.83.1
+      specifier: 1.83.0
+      version: 1.83.0
     '@platforma-sdk/workflow-tengo':
       specifier: 6.8.3
       version: 6.8.3
@@ -57,6 +57,9 @@ catalogs:
     turbo:
       specifier: 2.8.11
       version: 2.8.11
+    typescript:
+      specifier: ~5.9.3
+      version: 5.9.3
     vitest:
       specifier: ~4.0.18
       version: 4.0.18
@@ -92,7 +95,16 @@ importers:
         version: 2.8.11
 
   block:
-    dependencies:
+    devDependencies:
+      '@milaboratories/ts-builder':
+        specifier: 'catalog:'
+        version: 1.7.1(@microsoft/api-extractor@7.58.7(@types/node@25.6.0))(@types/node@25.6.0)(@volar/typescript@2.4.28)(@vue/language-core@3.3.10)(esbuild@0.27.7)(rollup@4.60.2)(vue@3.5.33(typescript@5.9.3))(yaml@2.8.3)
+      '@milaboratories/ts-configs':
+        specifier: 'catalog:'
+        version: 1.4.0
+      '@platforma-open/milaboratories.3d-structure-prediction.kind':
+        specifier: workspace:*
+        version: link:../kind
       '@platforma-open/milaboratories.3d-structure-prediction.model':
         specifier: workspace:*
         version: link:../model
@@ -102,25 +114,58 @@ importers:
       '@platforma-open/milaboratories.3d-structure-prediction.workflow':
         specifier: workspace:*
         version: link:../workflow
-    devDependencies:
       '@platforma-sdk/block-tools':
         specifier: 'catalog:'
         version: 2.14.3(@types/node@25.6.0)
+      '@platforma-sdk/model':
+        specifier: 'catalog:'
+        version: 1.83.0
       shx:
         specifier: 'catalog:'
         version: 0.4.0
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+
+  kind:
+    dependencies:
+      '@platforma-sdk/block-kind':
+        specifier: 'catalog:'
+        version: 1.1.0
+      '@types/node':
+        specifier: '*'
+        version: 25.6.0
+      typescript:
+        specifier: '*'
+        version: 7.0.2
+    devDependencies:
+      '@milaboratories/ts-builder':
+        specifier: 'catalog:'
+        version: 1.7.1(@microsoft/api-extractor@7.58.7(@types/node@25.6.0))(@types/node@25.6.0)(@volar/typescript@2.4.28)(@vue/language-core@3.3.10)(esbuild@0.27.7)(rollup@4.60.2)(vue@3.5.33(typescript@7.0.2))(yaml@2.8.3)
+      '@milaboratories/ts-configs':
+        specifier: 'catalog:'
+        version: 1.4.0
+      '@platforma-sdk/block-tools':
+        specifier: 'catalog:'
+        version: 2.14.3(@types/node@25.6.0)
 
   model:
     dependencies:
       '@milaboratories/graph-maker':
         specifier: 'catalog:'
-        version: 1.4.6(@milaboratories/pl-model-common@1.48.0)(@platforma-sdk/model@1.83.0)(@platforma-sdk/ui-vue@1.83.1(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.33(typescript@6.0.3)))(typescript@6.0.3))(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(typescript@6.0.3)
+        version: 1.4.6(@milaboratories/pl-model-common@1.48.0)(@platforma-sdk/model@1.83.0)(@platforma-sdk/ui-vue@1.83.0(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3))(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(typescript@6.0.3)
       '@milaboratories/helpers':
         specifier: 'catalog:'
-        version: 1.14.2
+        version: 1.14.5
+      '@platforma-open/milaboratories.3d-structure-prediction.kind':
+        specifier: workspace:*
+        version: link:../kind
       '@platforma-sdk/model':
         specifier: 'catalog:'
         version: 1.83.0
+      '@platforma-sdk/ui-vue':
+        specifier: 'catalog:'
+        version: 1.83.0(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3)
       '@types/node':
         specifier: '*'
         version: 25.6.0
@@ -130,7 +175,7 @@ importers:
     devDependencies:
       '@milaboratories/ts-builder':
         specifier: 'catalog:'
-        version: 1.7.1(@microsoft/api-extractor@7.58.7(@types/node@25.6.0))(@types/node@25.6.0)(@volar/typescript@2.4.28)(@vue/language-core@3.3.10)(esbuild@0.27.7)(rollup@4.60.2)(vue@3.5.33(typescript@6.0.3))(yaml@2.8.3)
+        version: 1.7.1(@microsoft/api-extractor@7.58.7(@types/node@25.6.0))(@types/node@25.6.0)(@volar/typescript@2.4.28)(@vue/language-core@3.3.10)(esbuild@0.27.7)(rollup@4.60.2)(vue@3.5.24(typescript@6.0.3))(yaml@2.8.3)
       '@milaboratories/ts-configs':
         specifier: 'catalog:'
         version: 1.4.0
@@ -143,9 +188,9 @@ importers:
       '@platforma-open/milaboratories.runenv-python-3':
         specifier: 'catalog:'
         version: 1.8.6
-      '@platforma-sdk/package-builder':
+      '@platforma-sdk/block-tools':
         specifier: 'catalog:'
-        version: 3.15.0
+        version: 2.14.3(@types/node@25.6.0)
 
   test:
     dependencies:
@@ -173,10 +218,10 @@ importers:
     dependencies:
       '@milaboratories/graph-maker':
         specifier: 'catalog:'
-        version: 1.4.6(@milaboratories/pl-model-common@1.48.0)(@platforma-sdk/model@1.83.0)(@platforma-sdk/ui-vue@1.83.1(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3))(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(typescript@6.0.3)
+        version: 1.4.6(@milaboratories/pl-model-common@1.48.0)(@platforma-sdk/model@1.83.0)(@platforma-sdk/ui-vue@1.83.0(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3))(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(typescript@6.0.3)
       '@milaboratories/structure-viewer':
         specifier: 'catalog:'
-        version: 0.3.0(@platforma-sdk/model@1.83.0)(@platforma-sdk/ui-vue@1.83.1(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3))(@types/react@19.2.14)(fp-ts@2.16.11)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vue@3.5.24(typescript@6.0.3))
+        version: 0.3.0(@platforma-sdk/model@1.83.0)(@platforma-sdk/ui-vue@1.83.0(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3))(@types/react@19.2.14)(fp-ts@2.16.11)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vue@3.5.24(typescript@6.0.3))
       '@platforma-open/milaboratories.3d-structure-prediction.model':
         specifier: workspace:*
         version: link:../model
@@ -185,7 +230,7 @@ importers:
         version: 1.83.0
       '@platforma-sdk/ui-vue':
         specifier: 'catalog:'
-        version: 1.83.1(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3)
+        version: 1.83.0(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3)
       '@types/node':
         specifier: '*'
         version: 25.6.0
@@ -1749,6 +1794,9 @@ packages:
   '@platforma-open/milaboratories.software-small-binaries@2.1.1':
     resolution: {integrity: sha512-KN1PR7YgUUfx1dxh/TtcoWpSZbOXbRxXzQuJ505qHuXuE0spYwC7bXnvJsEYbEwRcPMa0foTrjBnPNORE4yr+Q==}
 
+  '@platforma-sdk/block-kind@1.1.0':
+    resolution: {integrity: sha512-4uh+40o6BGfQcPPhkYGCjng8EXR9qn+6i5Fuc3RJ5QGfPYfcwbxT35G2V7ALUxmsqjLZ5SGL+JcW6Lm2v0cZHA==}
+
   '@platforma-sdk/block-tools@2.14.3':
     resolution: {integrity: sha512-CD0NPfUoXiJhl6JArC057oCXbqKkJf5HJsmrlZShnh6lKRaIQlibF8VUqbpBi9+PopsGCQ4/s5HnLR7wQoWDzg==}
     hasBin: true
@@ -1763,10 +1811,6 @@ packages:
   '@platforma-sdk/package-builder-lib@1.3.0':
     resolution: {integrity: sha512-CdBjmNo6E1fBxKYWaXa49L/L2WLURxs2f1TAqxLIZlHRE4DZ6E1TEj3jNNKESWp+/9rwtLkTAzmTzNPrDgz+2Q==}
 
-  '@platforma-sdk/package-builder@3.15.0':
-    resolution: {integrity: sha512-YzRiBYAaKvwnUcJgl6JMB3XLJuhlH72L8RZE3CDt2GM8hYRH4zaDzomfC5IHYNodK63RMaduzcvE10ICruI1hQ==}
-    hasBin: true
-
   '@platforma-sdk/tengo-builder@4.0.23':
     resolution: {integrity: sha512-Qkxpg3wuZQOc6KbEL3pifOCdqOH91TaL3jDluVIm5mz3qpx96KO+To8AT/0nLqmvaF7yv8AP22QiyyqduAhGiw==}
     engines: {node: '>=22'}
@@ -1775,8 +1819,8 @@ packages:
   '@platforma-sdk/test@1.83.2':
     resolution: {integrity: sha512-tdNihBcIQX7UoOP8Cbswf68oQkc6p2rHvgTQqwT7si62CpTRoCQsXnuRFlPgx0J+DI9zB1N6VrLIQLISSQXx/g==}
 
-  '@platforma-sdk/ui-vue@1.83.1':
-    resolution: {integrity: sha512-dGyhCp6cEjqIhTUAMD4+MEQ2hCthL88uJutlBUhqK1TT6p2W4GNNsFvpYPldOT2pSvPzFBN0Ams5DTpz0p6GnQ==}
+  '@platforma-sdk/ui-vue@1.83.0':
+    resolution: {integrity: sha512-7V/dy1yGrQKrsu2XlZ9V7X+9+3X3+RmVfC3b0MwjzNiW1qI2ImUvtaKp5wVtE0gq+COIWomAmy1tsVJtQtBJgg==}
 
   '@platforma-sdk/workflow-tengo@6.8.3':
     resolution: {integrity: sha512-KImCzq7v/2qgH/PIBCTipV0B/ulLxDnDOpWOO+zs56+p/B2Dg25ZevlA2LzOFVk9SWx6ilXp4ilWx3K2HbccqQ==}
@@ -8789,38 +8833,14 @@ snapshots:
       '@types/node': 24.5.2
       utility-types: 3.11.0
 
-  '@milaboratories/graph-maker@1.4.6(@milaboratories/pl-model-common@1.48.0)(@platforma-sdk/model@1.83.0)(@platforma-sdk/ui-vue@1.83.1(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3))(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(typescript@6.0.3)':
+  '@milaboratories/graph-maker@1.4.6(@milaboratories/pl-model-common@1.48.0)(@platforma-sdk/model@1.83.0)(@platforma-sdk/ui-vue@1.83.0(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3))(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(typescript@6.0.3)':
     dependencies:
       '@ag-grid-community/core': 32.3.9
-      '@milaboratories/helpers': 1.14.2
+      '@milaboratories/helpers': 1.14.5
       '@milaboratories/miplots4': 1.2.2(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)
       '@milaboratories/pf-plots': 1.4.4(@milaboratories/pl-model-common@1.48.0)(@platforma-sdk/model@1.83.0)
       '@platforma-sdk/model': 1.83.0
-      '@platforma-sdk/ui-vue': 1.83.1(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3)
-      '@types/d3-hierarchy': 3.1.7
-      '@types/d3-scale': 4.0.9
-      '@vueuse/core': 13.9.0(vue@3.5.33(typescript@6.0.3))
-      ag-grid-vue3: 34.1.2(vue@3.5.33(typescript@6.0.3))
-      canonicalize: 2.1.0
-      d3-hierarchy: 3.1.2
-      d3-scale: 4.0.2
-      vue: 3.5.33(typescript@6.0.3)
-    transitivePeerDependencies:
-      - '@milaboratories/pl-model-common'
-      - d3-dispatch
-      - d3-path
-      - d3-scale-chromatic
-      - supports-color
-      - typescript
-
-  '@milaboratories/graph-maker@1.4.6(@milaboratories/pl-model-common@1.48.0)(@platforma-sdk/model@1.83.0)(@platforma-sdk/ui-vue@1.83.1(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.33(typescript@6.0.3)))(typescript@6.0.3))(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(typescript@6.0.3)':
-    dependencies:
-      '@ag-grid-community/core': 32.3.9
-      '@milaboratories/helpers': 1.14.2
-      '@milaboratories/miplots4': 1.2.2(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)
-      '@milaboratories/pf-plots': 1.4.4(@milaboratories/pl-model-common@1.48.0)(@platforma-sdk/model@1.83.0)
-      '@platforma-sdk/model': 1.83.0
-      '@platforma-sdk/ui-vue': 1.83.1(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.33(typescript@6.0.3)))(typescript@6.0.3)
+      '@platforma-sdk/ui-vue': 1.83.0(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3)
       '@types/d3-hierarchy': 3.1.7
       '@types/d3-scale': 4.0.9
       '@vueuse/core': 13.9.0(vue@3.5.33(typescript@6.0.3))
@@ -8896,7 +8916,7 @@ snapshots:
 
   '@milaboratories/pf-plots@1.4.4(@milaboratories/pl-model-common@1.48.0)(@platforma-sdk/model@1.83.0)':
     dependencies:
-      '@milaboratories/helpers': 1.14.2
+      '@milaboratories/helpers': 1.14.5
       '@milaboratories/pl-model-common': 1.48.0
       '@platforma-sdk/model': 1.83.0
       canonicalize: 2.1.0
@@ -9124,10 +9144,10 @@ snapshots:
 
   '@milaboratories/software-pframes-conv@2.2.9': {}
 
-  '@milaboratories/structure-viewer@0.3.0(@platforma-sdk/model@1.83.0)(@platforma-sdk/ui-vue@1.83.1(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3))(@types/react@19.2.14)(fp-ts@2.16.11)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vue@3.5.24(typescript@6.0.3))':
+  '@milaboratories/structure-viewer@0.3.0(@platforma-sdk/model@1.83.0)(@platforma-sdk/ui-vue@1.83.0(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3))(@types/react@19.2.14)(fp-ts@2.16.11)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vue@3.5.24(typescript@6.0.3))':
     dependencies:
       '@platforma-sdk/model': 1.83.0
-      '@platforma-sdk/ui-vue': 1.83.1(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3)
+      '@platforma-sdk/ui-vue': 1.83.0(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3)
       molstar: 5.9.0(@types/react@19.2.14)(fp-ts@2.16.11)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       vue: 3.5.24(typescript@6.0.3)
     transitivePeerDependencies:
@@ -9155,7 +9175,53 @@ snapshots:
       oxlint: 1.63.0
       oxlint-plugin-eslint: 1.63.0
       rolldown: 1.2.6
-      rolldown-plugin-dts: 0.28.2(@volar/typescript@2.4.28)(rolldown@1.2.6)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@6.0.3))
+      rolldown-plugin-dts: 0.28.2(@volar/typescript@2.4.28)(rolldown@1.2.6)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@7.0.2))
+      rollup-plugin-copy: 3.5.0
+      rollup-plugin-sourcemaps2: 0.5.6(@types/node@25.6.0)(rollup@4.60.2)
+      typescript: 7.0.2
+      vite: 8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(yaml@2.8.3)
+      vite-plugin-commonjs: 0.10.4
+      vite-plugin-dts: 5.0.3(@microsoft/api-extractor@7.58.7(@types/node@25.6.0))(@vue/language-core@3.3.10)(esbuild@0.27.7)(rolldown@1.2.6)(rollup@4.60.2)(typescript@7.0.2)(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(yaml@2.8.3))
+      vite-plugin-externalize-deps: 0.10.0(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(yaml@2.8.3))
+      vite-plugin-lib-inject-css: 2.2.2(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(yaml@2.8.3))
+      vue-tsc: 3.3.10(typescript@7.0.2)
+    transitivePeerDependencies:
+      - '@microsoft/api-extractor'
+      - '@rspack/core'
+      - '@types/node'
+      - '@typescript/native-preview'
+      - '@vitejs/devtools'
+      - '@volar/typescript'
+      - '@vue/language-core'
+      - esbuild
+      - jiti
+      - less
+      - oxc-resolver
+      - oxlint-tsgolint
+      - rollup
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - vue
+      - webpack
+      - yaml
+
+  '@milaboratories/ts-builder@1.7.1(@microsoft/api-extractor@7.58.7(@types/node@25.6.0))(@types/node@25.6.0)(@volar/typescript@2.4.28)(@vue/language-core@3.3.10)(esbuild@0.27.7)(rollup@4.60.2)(vue@3.5.33(typescript@5.9.3))(yaml@2.8.3)':
+    dependencies:
+      '@milaboratories/ts-configs': 1.4.0
+      '@typescript/typescript6': 6.0.2
+      '@vitejs/plugin-vue': 6.0.8(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(yaml@2.8.3))(vue@3.5.33(typescript@5.9.3))
+      commander: 15.0.0
+      jsonc-parser: 3.3.1
+      oxfmt: 0.35.0
+      oxlint: 1.63.0
+      oxlint-plugin-eslint: 1.63.0
+      rolldown: 1.2.6
+      rolldown-plugin-dts: 0.28.2(@volar/typescript@2.4.28)(rolldown@1.2.6)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@7.0.2))
       rollup-plugin-copy: 3.5.0
       rollup-plugin-sourcemaps2: 0.5.6(@types/node@25.6.0)(rollup@4.60.2)
       typescript: 7.0.2
@@ -9201,7 +9267,7 @@ snapshots:
       oxlint: 1.63.0
       oxlint-plugin-eslint: 1.63.0
       rolldown: 1.2.6
-      rolldown-plugin-dts: 0.28.2(@volar/typescript@2.4.28)(rolldown@1.2.6)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@6.0.3))
+      rolldown-plugin-dts: 0.28.2(@volar/typescript@2.4.28)(rolldown@1.2.6)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@7.0.2))
       rollup-plugin-copy: 3.5.0
       rollup-plugin-sourcemaps2: 0.5.6(@types/node@25.6.0)(rollup@4.60.2)
       typescript: 7.0.2
@@ -9247,7 +9313,7 @@ snapshots:
       oxlint: 1.63.0
       oxlint-plugin-eslint: 1.63.0
       rolldown: 1.2.6
-      rolldown-plugin-dts: 0.28.2(@volar/typescript@2.4.28)(rolldown@1.2.6)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@6.0.3))
+      rolldown-plugin-dts: 0.28.2(@volar/typescript@2.4.28)(rolldown@1.2.6)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@7.0.2))
       rollup-plugin-copy: 3.5.0
       rollup-plugin-sourcemaps2: 0.5.6(@types/node@25.6.0)(rollup@4.60.2)
       typescript: 7.0.2
@@ -9300,42 +9366,6 @@ snapshots:
       '@types/d3-selection': 3.0.11
       '@types/sortablejs': 1.15.9
       '@vue/test-utils': 2.4.8(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(vue@3.5.24(typescript@6.0.3))
-      '@vueuse/core': 13.9.0(vue@3.5.24(typescript@6.0.3))
-      '@vueuse/integrations': 13.9.0(sortablejs@1.15.7)(vue@3.5.24(typescript@6.0.3))
-      canonicalize: 2.1.0
-      d3-array: 3.2.4
-      d3-axis: 3.0.0
-      d3-scale: 4.0.2
-      d3-selection: 3.0.0
-      resize-observer-polyfill: 1.5.1
-      sortablejs: 1.15.7
-      vue: 3.5.24(typescript@6.0.3)
-    transitivePeerDependencies:
-      - '@vue/compiler-dom'
-      - '@vue/server-renderer'
-      - async-validator
-      - axios
-      - change-case
-      - drauu
-      - focus-trap
-      - fuse.js
-      - idb-keyval
-      - jwt-decode
-      - nprogress
-      - qrcode
-      - typescript
-      - universal-cookie
-
-  '@milaboratories/uikit@2.15.26(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.33(typescript@6.0.3)))(typescript@6.0.3)':
-    dependencies:
-      '@milaboratories/helpers': 1.14.5
-      '@platforma-sdk/model': 1.83.0
-      '@types/d3-array': 3.2.2
-      '@types/d3-axis': 3.0.6
-      '@types/d3-scale': 4.0.9
-      '@types/d3-selection': 3.0.11
-      '@types/sortablejs': 1.15.9
-      '@vue/test-utils': 2.4.8(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.33(typescript@6.0.3)))(vue@3.5.24(typescript@6.0.3))
       '@vueuse/core': 13.9.0(vue@3.5.24(typescript@6.0.3))
       '@vueuse/integrations': 13.9.0(sortablejs@1.15.7)(vue@3.5.24(typescript@6.0.3))
       canonicalize: 2.1.0
@@ -9771,6 +9801,8 @@ snapshots:
       '@platforma-open/milaboratories.software-small-binaries.mnz-client': 1.6.5
       '@platforma-open/milaboratories.software-small-binaries.table-converter': 1.3.5
 
+  '@platforma-sdk/block-kind@1.1.0': {}
+
   '@platforma-sdk/block-tools@2.14.3(@types/node@25.6.0)':
     dependencies:
       '@aws-sdk/client-ecr-public': 3.859.0
@@ -9827,17 +9859,6 @@ snapshots:
       winston: 3.19.0
       yaml: 2.8.3
       zod: 3.25.76
-    transitivePeerDependencies:
-      - aws-crt
-      - bare-abort-controller
-      - bare-buffer
-      - react-native-b4a
-
-  '@platforma-sdk/package-builder@3.15.0':
-    dependencies:
-      '@platforma-sdk/package-builder-lib': 1.3.0
-      commander: 15.0.0
-      winston: 3.19.0
     transitivePeerDependencies:
       - aws-crt
       - bare-abort-controller
@@ -9913,51 +9934,12 @@ snapshots:
       - supports-color
       - vite
 
-  '@platforma-sdk/ui-vue@1.83.1(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3)':
+  '@platforma-sdk/ui-vue@1.83.0(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3)':
     dependencies:
       '@milaboratories/columns-collection-driver': 0.2.4
       '@milaboratories/pf-spec-driver': 1.5.1(@bytecodealliance/preview2-shim@0.17.8)
       '@milaboratories/pl-model-common': 1.48.0
       '@milaboratories/uikit': 2.15.26(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.24(typescript@6.0.3)))(typescript@6.0.3)
-      '@platforma-sdk/model': 1.83.0
-      '@types/d3-format': 3.0.4
-      '@types/node': 24.5.2
-      '@types/semver': 7.7.1
-      '@vueuse/core': 13.9.0(vue@3.5.24(typescript@6.0.3))
-      '@zip.js/zip.js': 2.8.26
-      ag-grid-enterprise: 34.1.2
-      ag-grid-vue3: 34.1.2(vue@3.5.24(typescript@6.0.3))
-      canonicalize: 2.1.0
-      d3-format: 3.1.2
-      es-toolkit: 1.46.0
-      fast-json-patch: 3.1.1
-      immer: 11.1.4
-      lru-cache: 11.3.5
-      vue: 3.5.24(typescript@6.0.3)
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - '@bytecodealliance/preview2-shim'
-      - '@vue/compiler-dom'
-      - '@vue/server-renderer'
-      - async-validator
-      - axios
-      - change-case
-      - drauu
-      - focus-trap
-      - fuse.js
-      - idb-keyval
-      - jwt-decode
-      - nprogress
-      - qrcode
-      - typescript
-      - universal-cookie
-
-  '@platforma-sdk/ui-vue@1.83.1(@bytecodealliance/preview2-shim@0.17.8)(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.33(typescript@6.0.3)))(typescript@6.0.3)':
-    dependencies:
-      '@milaboratories/columns-collection-driver': 0.2.4
-      '@milaboratories/pf-spec-driver': 1.5.1(@bytecodealliance/preview2-shim@0.17.8)
-      '@milaboratories/pl-model-common': 1.48.0
-      '@milaboratories/uikit': 2.15.26(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.33(typescript@6.0.3)))(typescript@6.0.3)
       '@platforma-sdk/model': 1.83.0
       '@types/d3-format': 3.0.4
       '@types/node': 24.5.2
@@ -13250,6 +13232,12 @@ snapshots:
       vite: 8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(yaml@2.8.3)
       vue: 3.5.24(typescript@6.0.3)
 
+  '@vitejs/plugin-vue@6.0.8(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(yaml@2.8.3))(vue@3.5.33(typescript@5.9.3))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.1
+      vite: 8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(yaml@2.8.3)
+      vue: 3.5.33(typescript@5.9.3)
+
   '@vitejs/plugin-vue@6.0.8(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(yaml@2.8.3))(vue@3.5.33(typescript@6.0.3))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
@@ -13509,6 +13497,12 @@ snapshots:
       vue: 3.5.24(typescript@6.0.3)
     optional: true
 
+  '@vue/server-renderer@3.5.33(vue@3.5.33(typescript@5.9.3))':
+    dependencies:
+      '@vue/compiler-ssr': 3.5.33
+      '@vue/shared': 3.5.33
+      vue: 3.5.33(typescript@5.9.3)
+
   '@vue/server-renderer@3.5.33(vue@3.5.33(typescript@6.0.3))':
     dependencies:
       '@vue/compiler-ssr': 3.5.33
@@ -13533,15 +13527,6 @@ snapshots:
       vue-component-type-helpers: 3.2.7
     optionalDependencies:
       '@vue/server-renderer': 3.5.33(vue@3.5.24(typescript@6.0.3))
-
-  '@vue/test-utils@2.4.8(@vue/compiler-dom@3.5.33)(@vue/server-renderer@3.5.33(vue@3.5.33(typescript@6.0.3)))(vue@3.5.24(typescript@6.0.3))':
-    dependencies:
-      '@vue/compiler-dom': 3.5.33
-      js-beautify: 1.15.4
-      vue: 3.5.24(typescript@6.0.3)
-      vue-component-type-helpers: 3.2.7
-    optionalDependencies:
-      '@vue/server-renderer': 3.5.33(vue@3.5.33(typescript@6.0.3))
 
   '@vueuse/core@13.9.0(vue@3.5.24(typescript@6.0.3))':
     dependencies:
@@ -15904,7 +15889,7 @@ snapshots:
 
   reusify@1.1.0: {}
 
-  rolldown-plugin-dts@0.28.2(@volar/typescript@2.4.28)(rolldown@1.2.6)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@6.0.3)):
+  rolldown-plugin-dts@0.28.2(@volar/typescript@2.4.28)(rolldown@1.2.6)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@7.0.2)):
     dependencies:
       dts-resolver: 3.0.0
       get-tsconfig: 5.0.0-beta.5
@@ -16439,8 +16424,7 @@ snapshots:
 
   typescript@5.4.5: {}
 
-  typescript@5.9.3:
-    optional: true
+  typescript@5.9.3: {}
 
   typescript@6.0.3: {}
 
@@ -16757,6 +16741,16 @@ snapshots:
       '@vue/shared': 3.5.24
     optionalDependencies:
       typescript: 6.0.3
+
+  vue@3.5.33(typescript@5.9.3):
+    dependencies:
+      '@vue/compiler-dom': 3.5.33
+      '@vue/compiler-sfc': 3.5.33
+      '@vue/runtime-dom': 3.5.33
+      '@vue/server-renderer': 3.5.33(vue@3.5.33(typescript@5.9.3))
+      '@vue/shared': 3.5.33
+    optionalDependencies:
+      typescript: 5.9.3
 
   vue@3.5.33(typescript@6.0.3):
     dependencies:
