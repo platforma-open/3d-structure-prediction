@@ -30,11 +30,11 @@ Author-code fixes the upgrade required:
   constructor) and `getColumns()` / `getSpec()`.
 - The test used the facade's old `blockSpec` export, which the slim facade
   replaced with a from-pack-v2 `BlockPointer`.
-- `@platforma-sdk/ui-vue` is held at 1.83.0. 1.83.1 stopped publishing
-  `dist/components/*.vue.d.ts` that its own `lib.d.ts` re-exports, and the slim
-  facade inlines the model's whole public type surface, so `BlockData`'s
-  `GraphMakerState` reaches those missing files through graph-maker and the
-  facade build fails. Same pin and reason as `sequence-properties`.
+- `@platforma-sdk/ui-vue` is on 1.83.3, which publishes the
+  `dist/components/*.vue.d.ts` its own `lib.d.ts` re-exports again. 1.83.1 had
+  dropped them, and the slim facade inlines the model's whole public type
+  surface, so `BlockData`'s `GraphMakerState` reached those missing files
+  through graph-maker and the facade build failed.
 - The model declares `@platforma-sdk/ui-vue` directly so graph-maker's peer
   resolves to the catalog version instead of floating to the newest published
   one.
