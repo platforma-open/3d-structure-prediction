@@ -1,5 +1,61 @@
 # @platforma-open/milaboratories.3d-structure-prediction
 
+## 1.3.2
+
+### Patch Changes
+
+- cf1b0d2: Accept synthetic-repertoire-profiler VDJ datasets
+
+  The dataset picker now admits a `pl7.app/variantKey` row axis that declares
+  `pl7.app/modality: vdj`, alongside the existing import-vdj-data sets. Only the
+  amino-acid-keyed side of a profiler run is offered — the nucleotide one carries
+  no AA sequence to fold.
+
+  Sequence discovery follows the producer. The profiler names its columns
+  `pl7.app/sequence` with a `pl7.app/feature` domain, not `pl7.app/vdj/sequence`
+  with `pl7.app/vdj/feature`, so the chain dropdowns match on the profiler's names
+  for a profiler dataset. Only the whole-variant sequence is offered; the per-region
+  columns (FR1 … CDR3 … FR4) are not foldable on their own.
+
+  A profiler run frames variants against a single parent and carries no chain key,
+  so it yields one sequence column. Such a dataset runs in NanoBodyBuilder2 mode;
+  ABodyBuilder2 has no column for the light slot and Run stays disabled.
+
+- 87ed719: Migrate to the latest block template and add the mandatory kind package
+
+  Refreshed onto block-tools 2.14.3 via `upgrade-sdk`, and added the `kind/`
+  package every block must now declare. The kind carries the block's identity
+  (`{name}@{version}`, read from its own `package.json`) and its init-params
+  contract.
+
+  `BlockParams` is the four settings that change what a prediction produces:
+  `mode`, `species`, `confidenceMetric` and `confidenceThresholdAngstroms`. All
+  are optional, so a project template can seed any subset and the model's `init`
+  keeps a default behind each. `.templateParams` projects the same four back, so
+  export and apply are inverses. Input selections are excluded by construction —
+  `dataset`, `heavyChainRef` and `lightChainRef` are anchor-bound references that
+  cannot travel between projects. The three setting vocabularies moved from
+  `model/src/types.ts` into the kind, which owns them; the model re-exports them
+  so every consumer keeps working.
+
+  Author-code fixes the upgrade required:
+
+  - `OutputColumnProvider` is gone from `@platforma-sdk/model`. The structures
+    table now uses `AccessorColumnsProvider` (a memoised factory, not a
+    constructor) and `getColumns()` / `getSpec()`.
+  - The test used the facade's old `blockSpec` export, which the slim facade
+    replaced with a from-pack-v2 `BlockPointer`.
+  - `@platforma-sdk/ui-vue` is on 1.83.3, which publishes the
+    `dist/components/*.vue.d.ts` its own `lib.d.ts` re-exports again. 1.83.1 had
+    dropped them, and the slim facade inlines the model's whole public type
+    surface, so `BlockData`'s `GraphMakerState` reached those missing files
+    through graph-maker and the facade build failed.
+  - The model declares `@platforma-sdk/ui-vue` directly so graph-maker's peer
+    resolves to the catalog version instead of floating to the newest published
+    one.
+
+  The software package moves from `pl-pkg` to `block-tools software build`.
+
 ## 1.3.1
 
 ### Patch Changes
