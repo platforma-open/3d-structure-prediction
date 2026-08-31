@@ -1,14 +1,23 @@
 import type { GraphMakerState } from "@milaboratories/graph-maker";
 import type {
+  ConfidenceMetric,
+  PredictionMode,
+  Species,
+} from "@platforma-open/milaboratories.3d-structure-prediction.kind";
+import type {
   DatasetSelection,
   PlDataTableStateV2,
   PrimaryRef,
   SUniversalPColumnId,
 } from "@platforma-sdk/model";
 
-export type PredictionMode = "ABodyBuilder2" | "NanoBodyBuilder2";
-export type ConfidenceMetric = "cdrh3Mean" | "overallMean";
-export type Species = "human" | "mouse" | "camelid" | "rat" | "rabbit" | "other";
+/**
+ * The three setting vocabularies live in the kind, not here. They are part of
+ * the block's init-params contract, and the kind cannot import the model — the
+ * dependency runs model → kind. Re-exported so every existing consumer (the UI
+ * imports them from the model) keeps working.
+ */
+export type { ConfidenceMetric, PredictionMode, Species };
 
 /**
  * Args sent to the workflow — the validated output of `.args(...)`. The
