@@ -1,0 +1,62 @@
+// Unit tests for structure-frames.lib.tengo. They need no backend.
+// Run: pnpm exec pl-tengo test
+test := import("@platforma-sdk/workflow-tengo:test")
+
+structureFrames := import(":structure-frames")
+structureColsConv := import(":structure-cols-conv")
+
+// A recorder standing in for `pframes.pFrameBuilder()`.
+_recorder := func() {
+	self := undefined
+	self = {
+		ids: [],
+		add: func(id, spec, data) {
+			self.ids = append(self.ids, id)
+			return self
+		}
+	}
+	return self
+}
+
+_outputFor := func(id) {
+	return { spec: { name: "spec." + id }, data: "data." + id }
+}
+
+_has := func(arr, v) {
+	for x in arr {
+		if x == v { return true }
+	}
+	return false
+}
+
+TestClonotypeLabel_TableOnly := func() {
+	table := _recorder()
+	exported := _recorder()
+	structureFrames.addConfidenceColumns(
+		[{ id: "clonotypeLabel" }, { id: "meanError" }],
+		_outputFor, table, exported)
+	test.isEqual(["clonotypeLabel", "meanError"], table.ids, "the table pframe keeps every column")
+	test.isEqual(["meanError"], exported.ids, "the export pframe omits clonotypeLabel")
+}
+
+TestRealColumnList_ExportIsTableMinusLabel := func() {
+	for _, paired in [false, true] {
+		cols := structureColsConv.getConfidenceColumns(paired, "cdrh3Mean", 2.5)
+		table := _recorder()
+		exported := _recorder()
+		structureFrames.addConfidenceColumns(cols, _outputFor, table, exported)
+
+		test.isEqual(len(cols), len(table.ids), "table has one entry per declared column")
+		test.isTrue(_has(table.ids, "clonotypeLabel"), "table keeps clonotypeLabel")
+		test.isFalse(_has(exported.ids, "clonotypeLabel"), "export omits clonotypeLabel")
+		test.isEqual(len(table.ids) - 1, len(exported.ids), "export is the table minus clonotypeLabel")
+		for id in exported.ids {
+			test.isTrue(_has(table.ids, id), "every exported column is also in the table")
+		}
+	}
+}
+
+TestIsTableOnly := func() {
+	test.isTrue(structureFrames.isTableOnly("clonotypeLabel"), "clonotypeLabel is table-only")
+	test.isFalse(structureFrames.isTableOnly("meanError"), "confidence metrics are exported")
+}

@@ -6,6 +6,7 @@ smart := import("@platforma-sdk/workflow-tengo:smart")
 times := import("times")
 
 structureColsConv := import(":structure-cols-conv")
+structureFrames := import(":structure-frames")
 
 predictBatchTpl := assets.importTemplate(":predict-batch")
 
@@ -179,13 +180,14 @@ wf.body(func(args) {
 	// depend on block order. So the export pframe omits it.
 	finalPfb := pframes.pFrameBuilder()
 	exportPfb := pframes.pFrameBuilder()
-	for col in confidenceXsvColumns {
-		out := processResult.output("confidence", col.id)
-		finalPfb.add(col.id, trace.inject(out.spec), out.data)
-		if col.id != "clonotypeLabel" {
-			exportPfb.add(col.id, trace.inject(out.spec), out.data)
-		}
-	}
+	structureFrames.addConfidenceColumns(
+		confidenceXsvColumns,
+		func(columnId) {
+			out := processResult.output("confidence", columnId)
+			return { spec: trace.inject(out.spec), data: out.data }
+		},
+		finalPfb,
+		exportPfb)
 	finalPf := finalPfb.build()
 	exportPf := exportPfb.build()
 

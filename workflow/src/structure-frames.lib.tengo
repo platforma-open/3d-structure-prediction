@@ -1,0 +1,35 @@
+// Splits the confidence columns between the block's own table pframe and the
+// export pframe. `clonotypeLabel` is a copy of the upstream `pl7.app/label`
+// column over the predicted records. The table pframe keeps it. The export
+// pframe omits it, so downstream blocks see one label column per axis.
+
+ll := import("@platforma-sdk/workflow-tengo:ll")
+
+// Column ids that stay in the table pframe and never reach the export pframe.
+TABLE_ONLY_COLUMN_IDS := {
+	clonotypeLabel: true
+}
+
+// Returns true when the column id must not be exported.
+isTableOnly := func(columnId) {
+	return !is_undefined(TABLE_ONLY_COLUMN_IDS[columnId])
+}
+
+// Adds every column to `tableBuilder`. Adds every exportable column to
+// `exportBuilder`. `outputFor(id)` returns `{ spec, data }` for a column id.
+// Both builders must expose `add(id, spec, data)`.
+addConfidenceColumns := func(columns, outputFor, tableBuilder, exportBuilder) {
+	ll.assert(is_array(columns), "addConfidenceColumns: expected an array of columns, got %v", columns)
+	for col in columns {
+		out := outputFor(col.id)
+		tableBuilder.add(col.id, out.spec, out.data)
+		if !isTableOnly(col.id) {
+			exportBuilder.add(col.id, out.spec, out.data)
+		}
+	}
+}
+
+export {
+	isTableOnly: isTableOnly,
+	addConfidenceColumns: addConfidenceColumns
+}
