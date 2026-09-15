@@ -171,12 +171,23 @@ wf.body(func(args) {
 	// of confidence. No subset filter columns: confident filtering happens on
 	// the PDB map below, so downstream has no all-vs-confident selection to
 	// make.
+	//
+	// `clonotypeLabel` is a copy of the upstream `pl7.app/label` column over the
+	// predicted records. The structures table needs it, because the table reads
+	// only this block's own pframe. Downstream blocks must not see it: a second
+	// `pl7.app/label` column on the clonotype axis makes their label lookup
+	// depend on block order. So the export pframe omits it.
 	finalPfb := pframes.pFrameBuilder()
+	exportPfb := pframes.pFrameBuilder()
 	for col in confidenceXsvColumns {
 		out := processResult.output("confidence", col.id)
 		finalPfb.add(col.id, trace.inject(out.spec), out.data)
+		if col.id != "clonotypeLabel" {
+			exportPfb.add(col.id, trace.inject(out.spec), out.data)
+		}
 	}
 	finalPf := finalPfb.build()
+	exportPf := exportPfb.build()
 
 	// PDB ResourceMap — produced by the batch orchestrator (merged across
 	// batches). The Python wrapper writes only confident clonotypes (prediction
@@ -195,7 +206,7 @@ wf.body(func(args) {
 			pdbsMap: pframes.exportFrame(pdbsPf)
 		},
 		exports: {
-			structures: finalPf,
+			structures: exportPf,
 			pdbs: pdbsPf
 		}
 	}
