@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { PlStructureViewerProps } from "@milaboratories/structure-viewer";
+import { PlStructureViewer } from "@milaboratories/structure-viewer";
 import {
   clonotypeCountInputKey,
   confidenceMetricOptions,
@@ -7,10 +9,8 @@ import {
   predictionModeOptions,
   speciesOptions,
 } from "@platforma-open/milaboratories.3d-structure-prediction.model";
-import type { PlStructureViewerProps } from "@milaboratories/structure-viewer";
-import { PlStructureViewer } from "@milaboratories/structure-viewer";
 import type { ImportFileHandle, PFrameHandle, PTableKey } from "@platforma-sdk/model";
-import { getColumnsFull, getSingleColumnData } from "@platforma-sdk/model";
+import { getColumnsFull, getColumnUniqueValues, getSingleColumnData } from "@platforma-sdk/model";
 import type { FileExportEntry } from "@platforma-sdk/ui-vue";
 import {
   PlAccordionSection,
@@ -38,6 +38,8 @@ const settingsOpen = ref(
 function onDatasetChange() {
   app.model.data.heavyChainRef = undefined;
   app.model.data.lightChainRef = undefined;
+  // Re-arm the sub-region warning: a dismissal applied to the previous dataset.
+  subRegionAlertOpen.value = true;
 }
 
 // The mode the prediction will actually run with — `data.mode`, which is what
@@ -98,6 +100,13 @@ const clonotypeCountTooHigh = computed(
   () => clonotypeCount.value !== undefined && clonotypeCount.value > MAX_CLONOTYPES,
 );
 
+// Sub-region alert — the selected dataset comes from an Amplicon Profiling run
+// that splits a region into user-defined sub-regions, so its variants might not be
+// plain V domains.
+const hasSubRegions = computed(() => app.model.outputs.hasSubRegions === true);
+
+const subRegionAlertOpen = ref(true);
+
 // scFv suspicion alert (R7) — heuristic from the result-pool side: dataset has
 // both heavy and light VDJRegion columns on the same bulk clonotype axis.
 // Temporarily disabled: too noisy for the current set of bulk inputs. To
@@ -130,6 +139,40 @@ const failureReasonEntries = computed(() => {
   if (!s) return [];
   return Object.entries(s.byFailureReason).sort((a, b) => b[1] - a[1]);
 });
+
+// Failure alert — does the "Failure reason" column hold anything at all?
+const hasFailures = ref(false);
+
+watch(
+  [() => app.model.outputs.failureReasonPf, () => app.model.outputs.failureReasonSpec?.columnId],
+  async ([handle, columnId], _prev, onCleanup) => {
+    // Vue does not cancel a callback already in flight, so a slow answer for the
+    // previous run can settle after the current one and leave the alert describing
+    // a dataset the user has moved off.
+    let superseded = false;
+    onCleanup(() => {
+      superseded = true;
+    });
+
+    if (!handle || !columnId) {
+      hasFailures.value = false;
+      return;
+    }
+    try {
+      // A run where everything succeeded still has one row per clonotype with this
+      // cell left blank, so the blank is itself a distinct value and must not count.
+      const { values } = await getColumnUniqueValues(handle, columnId, 5);
+      if (superseded) return;
+      hasFailures.value = values.some((v) => v != null && String(v).trim() !== "");
+    } catch (err) {
+      if (superseded) return;
+      // An unreadable column must not take the page down with it.
+      console.warn("Failure-reason check failed", err);
+      hasFailures.value = false;
+    }
+  },
+  { immediate: true },
+);
 
 // Empty-input alert — surfaced after a run reports zero submitted rows.
 const emptyInput = computed(() => failureStats.value?.totalRows === 0);
@@ -338,6 +381,12 @@ function handleViewerVisibility(open: boolean) {
       the <code>confident</code> subset.
     </PlAlert>
 
+    <!-- Something in the run has a failure reason recorded -->
+    <PlAlert v-if="hasFailures" type="warn">
+      Some sequences did not produce a usable structure. Enable the “Failure reason” column from the
+      table's columns panel to see why.
+    </PlAlert>
+
     <PlAgDataTableV2
       v-model="app.model.data.tableState"
       :settings="tableSettings"
@@ -359,6 +408,14 @@ function handleViewerVisibility(open: boolean) {
         required
         @update:model-value="onDatasetChange"
       />
+
+      <!-- Non-canonical architecture warning: the input run defines sub-regions -->
+      <PlAlert v-if="hasSubRegions" v-model="subRegionAlertOpen" type="warn" closeable>
+        The selected dataset splits one or more regions into user-defined sub-regions, so its
+        variants are designed constructs that might not follow the canonical VDJ architecture.
+        Sequences may fold with unreliable geometry.<br />Please make sure the models used in this
+        block are valid for your data.
+      </PlAlert>
 
       <PlDropdown
         v-model="app.model.data.heavyChainRef"
