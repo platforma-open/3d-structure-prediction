@@ -144,18 +144,28 @@ const failureReasonEntries = computed(() => {
 const hasFailures = ref(false);
 
 watch(
-  () => [app.model.outputs.failureReasonPf, app.model.outputs.failureReasonSpec] as const,
-  async ([handle, spec]) => {
-    if (!handle || !spec) {
+ [() => app.model.outputs.failureReasonPf, () => app.model.outputs.failureReasonSpec?.columnId],
+  async ([handle, columnId], _prev, onCleanup) => {
+    // Vue does not cancel a callback already in flight, so a slow answer for the
+    // previous run can settle after the current one and leave the alert describing
+    // a dataset the user has moved off.
+    let superseded = false;
+    onCleanup(() => {
+      superseded = true;
+    });
+
+    if (!handle || !columnId) {
       hasFailures.value = false;
       return;
     }
     try {
       // A run where everything succeeded still has one row per clonotype with this
       // cell left blank, so the blank is itself a distinct value and must not count.
-      const { values } = await getColumnUniqueValues(handle, spec.columnId, 5);
+      const { values } = await getColumnUniqueValues(handle, columnId, 5);
+      if (superseded) return;
       hasFailures.value = values.some((v) => v != null && String(v).trim() !== "");
     } catch (err) {
+      if (superseded) return;
       // An unreadable column must not take the page down with it.
       console.warn("Failure-reason check failed", err);
       hasFailures.value = false;
