@@ -152,6 +152,11 @@ const PROFILER_VARIANT_FEATURE = "amplicon-sequence";
 const SUBDIVIDED_REGIONS_COLUMN = "pl7.app/repertoire/subdividedRegions";
 
 /**
+ * The per-clonotype failure reason, human-readable.
+ */
+const FAILURE_REASON_COLUMN = "pl7.app/structure/failureReason/text";
+
+/**
  * The profiler's run scope, stamped on both its variant axis and the columns of
  * that run.
  */
@@ -509,6 +514,25 @@ export const platforma = BlockModelV3.create({ dataModel: blockDataModel, kind }
     const pCols = ctx.outputs?.resolve("structuresTable")?.getPColumns();
     if (pCols === undefined) return undefined;
     const col = pCols.find((c) => c.spec.name === "pl7.app/structure/confidence/cdrh3");
+    return col ? { columnId: col.id, spec: col.spec } : undefined;
+  })
+
+  /**
+   * Single-column pFrame over the failure-reason column, plus its id — the pair the
+   * UI needs to ask the PFrame driver for that column's distinct values.
+   */
+  .output("failureReasonPf", (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.outputs?.resolve("structuresTable")?.getPColumns();
+    if (pCols === undefined) return undefined;
+    const col = pCols.find((c) => c.spec.name === FAILURE_REASON_COLUMN);
+    if (!col) return undefined;
+    return createPFrameForGraphs(ctx, [col]);
+  })
+
+  .output("failureReasonSpec", (ctx): PColumnIdAndSpec | undefined => {
+    const pCols = ctx.outputs?.resolve("structuresTable")?.getPColumns();
+    if (pCols === undefined) return undefined;
+    const col = pCols.find((c) => c.spec.name === FAILURE_REASON_COLUMN);
     return col ? { columnId: col.id, spec: col.spec } : undefined;
   })
 

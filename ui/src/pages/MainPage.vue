@@ -10,7 +10,7 @@ import {
   speciesOptions,
 } from "@platforma-open/milaboratories.3d-structure-prediction.model";
 import type { ImportFileHandle, PFrameHandle, PTableKey } from "@platforma-sdk/model";
-import { getColumnsFull, getSingleColumnData } from "@platforma-sdk/model";
+import { getColumnsFull, getColumnUniqueValues, getSingleColumnData } from "@platforma-sdk/model";
 import type { FileExportEntry } from "@platforma-sdk/ui-vue";
 import {
   PlAccordionSection,
@@ -139,6 +139,30 @@ const failureReasonEntries = computed(() => {
   if (!s) return [];
   return Object.entries(s.byFailureReason).sort((a, b) => b[1] - a[1]);
 });
+
+// Failure alert — does the "Failure reason" column hold anything at all?
+const hasFailures = ref(false);
+
+watch(
+  () => [app.model.outputs.failureReasonPf, app.model.outputs.failureReasonSpec] as const,
+  async ([handle, spec]) => {
+    if (!handle || !spec) {
+      hasFailures.value = false;
+      return;
+    }
+    try {
+      // A run where everything succeeded still has one row per clonotype with this
+      // cell left blank, so the blank is itself a distinct value and must not count.
+      const { values } = await getColumnUniqueValues(handle, spec.columnId, 5);
+      hasFailures.value = values.some((v) => v != null && String(v).trim() !== "");
+    } catch (err) {
+      // An unreadable column must not take the page down with it.
+      console.warn("Failure-reason check failed", err);
+      hasFailures.value = false;
+    }
+  },
+  { immediate: true },
+);
 
 // Empty-input alert — surfaced after a run reports zero submitted rows.
 const emptyInput = computed(() => failureStats.value?.totalRows === 0);
@@ -345,6 +369,12 @@ function handleViewerVisibility(open: boolean) {
       No clonotypes pass the confidence threshold of
       {{ failureStats?.thresholdAngstroms }} Å. Lower the threshold or relax the metric to populate
       the <code>confident</code> subset.
+    </PlAlert>
+
+    <!-- Something in the run has a failure reason recorded -->
+    <PlAlert v-if="hasFailures" type="warn">
+      Some sequences did not produce a usable structure. Enable the “Failure reason” column from the
+      table's columns panel to see why.
     </PlAlert>
 
     <PlAgDataTableV2
