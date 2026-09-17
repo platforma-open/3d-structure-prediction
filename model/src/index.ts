@@ -1,3 +1,4 @@
+import { kind } from "@platforma-open/milaboratories.3d-structure-prediction.kind";
 import type {
   AnchoredPColumnSelector,
   AxisId,
@@ -22,7 +23,6 @@ import {
   isPColumnSpec,
   parseResourceMap,
 } from "@platforma-sdk/model";
-import { kind } from "@platforma-open/milaboratories.3d-structure-prediction.kind";
 import { blockDataModel } from "./dataModel";
 import type { BlockArgs, BlockData, ClonotypeCountResult, PredictionSummary } from "./types";
 
@@ -57,8 +57,8 @@ function hasLeadSelectionTrace(annotations: Record<string, string> | undefined):
   }
 }
 
-export * from "./types";
 export { blockDataModel } from "./dataModel";
+export * from "./types";
 
 /**
  * Maximum number of distinct clonotypes the block is allowed to run on.
@@ -144,6 +144,18 @@ const VDJ_FEATURES = ["VDJRegion", "VDJRegionInFrame"];
  * synthetic-repertoire-profiler/workflow/src/column-specs.lib.tengo.
  */
 const PROFILER_VARIANT_FEATURE = "amplicon-sequence";
+
+/**
+ * Per-parent list of the regions a profiler run splits into user-defined
+ * sub-regions, keyed `[parentId]`.
+ */
+const SUBDIVIDED_REGIONS_COLUMN = "pl7.app/repertoire/subdividedRegions";
+
+/**
+ * The profiler's run scope, stamped on both its variant axis and the columns of
+ * that run.
+ */
+const EXTRACTION_RUN_ID_DOMAIN = "pl7.app/repertoire/extractionRunId";
 
 /**
  * AA sequence column matchers anchored to the selected dataset's row axis.
@@ -412,6 +424,27 @@ export const platforma = BlockModelV3.create({ dataModel: blockDataModel, kind }
     const spec = ctx.resultPool.getPColumnSpecByRef(ref);
     if (spec === undefined) return undefined;
     return spec.axesSpec[1]?.name === "pl7.app/vdj/scClonotypeKey";
+  })
+
+  /**
+   * Whether the selected dataset's profiler run splits any region into
+   * user-defined sub-regions.
+   */
+  .output("hasSubRegions", (ctx): boolean => {
+    const ref = datasetColumnRef(ctx.data.dataset);
+    if (ref === undefined) return false;
+    const runId =
+      ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1]?.domain?.[EXTRACTION_RUN_ID_DOMAIN];
+    // No run id on the row axis: not a profiler dataset, so sub-regions cannot exist.
+    if (runId === undefined) return false;
+
+    // Get SUBDIVIDED_REGIONS_COLUMN matching the input ref run ID
+    return (
+      ctx.resultPool.getOptions({
+        name: SUBDIVIDED_REGIONS_COLUMN,
+        domain: { [EXTRACTION_RUN_ID_DOMAIN]: runId },
+      }).length > 0
+    );
   })
 
   .outputWithStatus("structuresTable", (ctx): PlDataTableModel | undefined => {
