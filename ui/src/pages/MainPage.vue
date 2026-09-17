@@ -144,7 +144,7 @@ const failureReasonEntries = computed(() => {
 const hasFailures = ref(false);
 
 watch(
- [() => app.model.outputs.failureReasonPf, () => app.model.outputs.failureReasonSpec?.columnId],
+  [() => app.model.outputs.failureReasonPf, () => app.model.outputs.failureReasonSpec?.columnId],
   async ([handle, columnId], _prev, onCleanup) => {
     // Vue does not cancel a callback already in flight, so a slow answer for the
     // previous run can settle after the current one and leave the alert describing
