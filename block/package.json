@@ -1,6 +1,6 @@
 {
   "name": "@platforma-open/milaboratories.3d-structure-prediction",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "files": [
     "dist",
     "block-pack"
