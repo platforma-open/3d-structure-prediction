@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.3d-structure-prediction
 
+## 1.4.2
+
+### Patch Changes
+
+- d160421: Update SDK: PlAgDataTable no longer recreates its grid in an endless loop
+
 ## 1.4.1
 
 ### Patch Changes
