@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.3d-structure-prediction
 
+## 1.4.3
+
+### Patch Changes
+
+- 0ab0462: Release every package through npm trusted publishing (OIDC) so each package's trusted publisher is used before it expires.
+
 ## 1.4.2
 
 ### Patch Changes
