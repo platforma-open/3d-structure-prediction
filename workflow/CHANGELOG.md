@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.3d-structure-prediction.workflow
 
+## 1.2.7
+
+### Patch Changes
+
+- 0f2fc36: Build the Docker image on mambaorg/micromamba:2. The system trust store of the old base image trusts the compromised eMudhra intermediate CAs.
+- Updated dependencies [0f2fc36]
+  - @platforma-open/milaboratories.3d-structure-prediction.software@1.1.4
+
 ## 1.2.6
 
 ### Patch Changes
