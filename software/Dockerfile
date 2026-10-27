@@ -15,7 +15,7 @@
 # `src_python` in package.json, so all COPY paths below are relative to
 # software/src_python/.
 
-FROM mambaorg/micromamba:1.5.10
+FROM mambaorg/micromamba:2
 
 USER root
 
