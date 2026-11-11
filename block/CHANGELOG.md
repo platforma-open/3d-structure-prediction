@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.3d-structure-prediction
 
+## 1.4.5
+
+### Patch Changes
+
+- 5c6e726: Amplicon scFV support
+
 ## 1.4.4
 
 ### Patch Changes
