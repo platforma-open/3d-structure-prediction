@@ -170,21 +170,28 @@ const EXTRACTION_RUN_ID_DOMAIN = "pl7.app/repertoire/extractionRunId";
  * `pl7.app/sequence` keyed by `pl7.app/feature`. Matching the wrong one leaves
  * both chain dropdowns empty, so the dataset looks accepted but cannot run.
  *
- * For a profiler run only the whole-variant column is offered. Its per-region
- * columns (FR1 … CDR3 … FR4) sit on the same axis under the same name, but
- * folding a lone CDR3 is not a structure prediction.
+ * For a single-chain profiler run only the whole-variant column is offered. For an
+ * scFv construct the whole variant is the fused VH-linker-VL, so the per-chain
+ * V-domains (feature VDJRegion, one per `pl7.app/vdj/chain`) are offered instead.
+ * The per-region columns (FR1 … CDR3 … FR4) are never offered — folding a lone CDR3
+ * is not a structure prediction.
  */
 function sequenceMatchersForDataset(datasetSpec: PColumnSpec): AnchoredPColumnSelector[] {
   const rowAxis = datasetSpec.axesSpec[1];
 
   if (isProfilerVdjRowAxis(rowAxis)) {
+    // An scFv construct's whole-variant column is the fused VH-linker-VL, which is not one
+    // foldable chain. Offer the per-chain V-domains instead (feature VDJRegion, told apart by
+    // pl7.app/vdj/chain), so the heavy and light dropdowns get VH and VL. A single-chain profiler
+    // run has no VDJRegion column, so there the whole variant IS the one V-domain.
+    const isConstruct = rowAxis?.domain?.["pl7.app/vdj/pairing"] === "construct";
     return [
       {
         axes: [{ anchor: "main", idx: 1 }],
         name: "pl7.app/sequence",
         domain: {
           "pl7.app/alphabet": "aminoacid",
-          "pl7.app/feature": PROFILER_VARIANT_FEATURE,
+          "pl7.app/feature": isConstruct ? "VDJRegion" : PROFILER_VARIANT_FEATURE,
         },
       },
     ];
