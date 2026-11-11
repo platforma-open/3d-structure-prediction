@@ -24,13 +24,13 @@ jobs:
     with:
       app-name: 'Block: 3d Structure Prediction'
       app-name-slug: 'block-3d-structure-prediction'
-      node-version: '22.x'
+      node-version: '24.22.1'
       gha-runner-label: hz-ubuntu-dind
       build-script-name: 'build:dev-local'
       build-before-publish-script-name: 'build:release'
       pnpm-recursive-build: false
 
-      test: false
+      test: true
       test-script-name: 'test'
       pnpm-recursive-tests: false
       team-id: 'ciplopen'
