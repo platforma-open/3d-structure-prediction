@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.3d-structure-prediction
 
+## 1.4.6
+
+### Patch Changes
+
+- 6672d13: Point the block's repository link to the current GitHub repository.
+
 ## 1.4.5
 
 ### Patch Changes
