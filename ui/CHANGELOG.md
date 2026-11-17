@@ -1,5 +1,14 @@
 # @platforma-open/milaboratories.3d-structure-prediction.ui
 
+## 1.2.3
+
+### Patch Changes
+
+- 087dd48: Run without the block's window being opened. The block's arguments waited for the clonotype count, and only an open window writes that count into the data. A block made from a project template, or started by "Run All", had no window to do it and was left out with "Checking dataset size…". A missing count now holds the run back only while a window is checking it, after a person changed the dataset, its subset or the heavy chain there. A count above 10,000 clonotypes holds the run back as before. The cost: a block that no window has opened runs without the size check.
+- Updated dependencies [087dd48]
+- Updated dependencies [18ff332]
+  - @platforma-open/milaboratories.3d-structure-prediction.model@1.3.3
+
 ## 1.2.2
 
 ### Patch Changes

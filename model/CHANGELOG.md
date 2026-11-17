@@ -1,5 +1,14 @@
 # @platforma-open/milaboratories.3d-structure-prediction.model
 
+## 1.3.3
+
+### Patch Changes
+
+- 087dd48: Run without the block's window being opened. The block's arguments waited for the clonotype count, and only an open window writes that count into the data. A block made from a project template, or started by "Run All", had no window to do it and was left out with "Checking dataset size…". A missing count now holds the run back only while a window is checking it, after a person changed the dataset, its subset or the heavy chain there. A count above 10,000 clonotypes holds the run back as before. The cost: a block that no window has opened runs without the size check.
+- 18ff332: Keep the input dataset and the chains in a project template. A project made from a template came with 3D Structure Prediction without its dataset and chain columns, so they had to be picked by hand. The kind now carries `dataset`, `heavyChainRef` and `lightChainRef`, and the block made from a template points at the dataset and the sequence columns the original project folded.
+- Updated dependencies [18ff332]
+  - @platforma-open/milaboratories.3d-structure-prediction.kind@1.1.0
+
 ## 1.3.2
 
 ### Patch Changes
