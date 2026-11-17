@@ -270,11 +270,14 @@ export const platforma = BlockModelV3.create({ dataModel: blockDataModel, kind }
    * names exactly the fields the kind's `BlockParams` declares, so exporting a
    * block to a template and applying that template round-trips.
    *
-   * Input selections are absent on purpose: `dataset`, `heavyChainRef` and
-   * `lightChainRef` are anchor-bound and meaningless in another project. View
-   * state is absent because it is not configuration.
+   * The input selections go with the settings, so a project made from the
+   * template folds the clonotypes of the block the original one read. View state
+   * is absent because it is not configuration.
    */
   .templateParams((data) => ({
+    dataset: data.dataset,
+    heavyChainRef: data.heavyChainRef,
+    lightChainRef: data.lightChainRef,
     mode: data.mode,
     species: data.species,
     confidenceMetric: data.confidenceMetric,
