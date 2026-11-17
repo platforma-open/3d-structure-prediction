@@ -298,12 +298,17 @@ export const platforma = BlockModelV3.create({ dataModel: blockDataModel, kind }
     }
     // Pre-flight gate. The `clonotypeCount` output derives the distinct-
     // clonotype count synchronously from result-pool stats; app.ts mirrors it
-    // into `data.lastClonotypeCount` (args sees only `data`, never ctx). Until
-    // that lands, and when it exceeds the limit, Run stays disabled.
-    if (data.lastClonotypeCount === undefined) {
+    // into `data.lastClonotypeCount` (args sees only `data`, never ctx).
+    //
+    // A count that exceeds the limit keeps Run disabled. A missing count does so
+    // only while the window is waiting for one, after a person changed the
+    // selection in it. With no window to write the count, as in a block made
+    // from a project template and started by "Run All", the block runs: the
+    // count cannot arrive there, and waiting for it would leave the block out.
+    if (data.clonotypeCountPending === true && data.lastClonotypeCount === undefined) {
       throw new Error("Checking dataset size…");
     }
-    if (data.lastClonotypeCount > MAX_CLONOTYPES) {
+    if (data.lastClonotypeCount !== undefined && data.lastClonotypeCount > MAX_CLONOTYPES) {
       throw new Error(
         `Dataset has ${data.lastClonotypeCount.toLocaleString()} clonotypes ` +
           `(max ${MAX_CLONOTYPES.toLocaleString()}). Apply a stricter filter and try again.`,
@@ -340,7 +345,8 @@ export const platforma = BlockModelV3.create({ dataModel: blockDataModel, kind }
   //    so its row count is the number of distinct clonotypes.
   //
   // Surfaced to the UI alert and (via `app.ts` mirroring) to
-  // `data.lastClonotypeCount`, which `.args()` reads as the Run gate. The
+  // `data.lastClonotypeCount`, which `.args()` reads as the Run gate when a
+  // window has written it. The
   // result is stamped with `inputKey` so the UI can reject a stale value
   // observed during the async recompute window (see `ClonotypeCountResult`).
   .output("clonotypeCount", (ctx): ClonotypeCountResult | undefined => {

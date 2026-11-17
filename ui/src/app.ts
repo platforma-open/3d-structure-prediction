@@ -61,7 +61,8 @@ const unwatch = watch(sdkPlugin, ({ loaded }) => {
   // `.args()` can see it (V3 args() only receives data, not ctx). The count is
   // a pure synchronous derivation from result-pool stats, so every client
   // converges to the same value. The throw in `.args()` is what disables the
-  // Run button when the count is missing or above MAX_CLONOTYPES.
+  // Run button when the count is above MAX_CLONOTYPES, or is missing after a
+  // change of the selection in this window (`clonotypeCountPending`).
   //
   // Outputs recompute asynchronously after a `data` change, so right after the
   // user swaps dataset/filter/heavy chain `outputs.clonotypeCount` still holds
@@ -76,20 +77,29 @@ const unwatch = watch(sdkPlugin, ({ loaded }) => {
     if (result.count !== app.model.data.lastClonotypeCount) {
       app.model.data.lastClonotypeCount = result.count;
     }
+    // The count of the live selection has landed: nothing is being checked.
+    if (result.count !== undefined && app.model.data.clonotypeCountPending === true) {
+      app.model.data.clonotypeCountPending = false;
+    }
   });
 
   // Stale-count guard: switching dataset or filter must clear the cached
   // count so the previous (smaller) value can't briefly keep Run enabled on
   // a swap to a much larger input. The model output re-derives, and the
   // inputKey check above gates the refill so only the matching count lands.
+  //
+  // The source is the fingerprint of the selection, a string: it changes only
+  // when the selection does. A list of the picked objects would also change
+  // when the server's copy of the data replaces the window's, with the same
+  // selection in it, and would then mark a count as being checked that nobody
+  // asked for.
   watch(
-    () => [
-      app.model.data.dataset?.primary?.column,
-      app.model.data.dataset?.primary?.filter,
-      app.model.data.heavyChainRef,
-    ],
+    () => clonotypeCountInputKey(app.model.data),
     () => {
       app.model.data.lastClonotypeCount = undefined;
+      // Marks the missing count as "being checked": `.args()` holds Run back
+      // only then, so a block no window has touched is not held back for good.
+      app.model.data.clonotypeCountPending = true;
     },
   );
 });
