@@ -30,6 +30,10 @@ export const blockDataModel = new DataModelBuilder({ kind })
   .init(({ params }) => ({
     customBlockLabel: "",
 
+    dataset: params?.dataset,
+    heavyChainRef: params?.heavyChainRef,
+    lightChainRef: params?.lightChainRef,
+
     mode: params?.mode ?? ("NanoBodyBuilder2" as const),
     species: params?.species,
     confidenceMetric: params?.confidenceMetric ?? ("cdrh3Mean" as const),

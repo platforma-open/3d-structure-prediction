@@ -80,6 +80,13 @@ export type BlockData = {
   scFvAlertDismissed: boolean;
   failureAlertDismissed: boolean;
   lastClonotypeCount?: number;
+  /**
+   * True from the moment a person changes the selection in the window until
+   * the count of the new selection is mirrored. Only then does a missing
+   * `lastClonotypeCount` mean "being checked" and hold Run back. A block no
+   * window has touched has neither field and runs without the check.
+   */
+  clonotypeCountPending?: boolean;
 };
 
 /**
